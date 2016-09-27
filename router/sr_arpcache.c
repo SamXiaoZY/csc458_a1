@@ -16,8 +16,53 @@
   checking whether we should resend an request or destroy the arp request.
   See the comments in the header file for an idea of what it should look like.
 */
+
+
+
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
     /* Fill this in */
+
+    /* I don't think lock is needed*/
+    struct sr_arpcache cache = sr->cache;
+    struct sr_arpreq* currReq = cache.requests;
+
+
+    handle_arpreq(currReq, &cache);
+}
+
+void handle_arpreq(struct sr_arpreq* req, struct sr_arpcache* cache){
+    
+    /*WARNING MAY NOT WORK IF THE FIRST PACKET in req->packets is EMPTY.8?*/
+
+    /*this is a linked list of packets depending on the ARP request*/
+    struct sr_packet *packets = req->packets;
+
+    time_t curtime = time(NULL);
+    if(difftime(curtime, req->sent) > 1.0){
+        if(req->times_sent > 5){
+            /*sent ICMP unreachable to all packets waiting on this ARPReq*/
+            while(packets != NULL){
+
+                /*NEED TO CHECK IF RAW ETHERNET FRAME HAS 8 BYTE PREAMBLE */
+                sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packets->buf;
+                sr_ip_hdr_t* currIPHdr = (sr_ip_hdr_t*) &(packets->buf[sizeof(sr_ethernet_hdr_t)]);
+                /*This should be an IP packet*/
+                /*SEND ETHERNET PACK WITH ICMP PACKET INSIDE IT*/
+
+
+
+                packets = packets->next;
+            }
+            sr_arpreq_destroy(cache, req);
+        }
+        else{/*req->times_sent <= 5*/
+
+            /*figure out how to sent ARP request, possible use the queue function listed below*/
+            req->sent = time(NULL);
+            req->times_sent++;
+        }
+    }
+
 }
 
 /* You should not need to touch the rest of this code. */
