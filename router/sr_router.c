@@ -71,14 +71,35 @@ void sr_handlepacket(struct sr_instance* sr,
         unsigned int len,
         char* interface/* lent */)
 {
-  /* REQUIRES */
-  assert(sr);
-  assert(packet);
-  assert(interface);
+    /* REQUIRES */
+    assert(sr);
+    assert(packet);
+    assert(interface);
 
-  printf("*** -> Received packet of length %d \n",len);
+    printf("*** -> Received packet of length %d \n",len);
+    ip_packet = parse out ip packet from packet;
 
-  /* fill in code here */
+    /* fill in code here */
+    struct handled_ip_packet = sr_handle_ippacket_self(sr, (sr_ip_hdr_t*) null));
 
+    if (handled_ip_packet != null) {
+        //create_ethernet_hdr(sr, [0,0,0,0,0,0], sr);
+        //sr_vns_comm.sr_send_packet(sr, )
+    }
 }/* end sr_ForwardPacket */
 
+struct sr_icmp_hdr* sr_handle_ip_packet_self(struct sr_instance* sr, struct sr_ip_hdr_t* ip_packet) {
+    struct sr_icmp_hdr* icmp_header = null;
+
+    // Return a port unreachable for UDP or TCP type packets
+    if (ip_packet->ip_p == sr_ip_protocol.ip_protocol_tcp || ip_packet->ip_p == sr_ip_protocol.ip_protocol_udp ) {
+        icmp_header = create_icmp_header(sr_icmp_type.icmp_type_dest_unreachable, sr_icmp_code.icmp_code_2);
+    } else if (ip_packet->ip_p == sr_ip_protocol.ip_protocol_icmp && 
+        ck_sum(ip_packet, ip_packet->ip_len))) {
+        // If the packet is a valid ICMP echo request, send an echo reply
+        struct sr_icmp_hdr* icmp_header = (sr_icmp_hdr*) &(ip_packet->buf[sizeof(sr_ip_hdr_t)]);
+        icmp_header = create_icmp_hdr(sr_icmp_type.icmp_type_echo_reply, sr_icmp_code.icmp_code_0);
+    }
+
+    return sr_icmp_hdr;
+}

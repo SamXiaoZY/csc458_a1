@@ -30,6 +30,22 @@ uint8_t ip_protocol(uint8_t *buf) {
   return iphdr->ip_p;
 }
 
+struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code) {
+    struct sr_icmp_hdr* icmp_header = malloc(sizeof(struct sr_icmp_hdr));
+    icmp_header->type = type;
+    icmp_header->code = code;
+    icmp_header->icmp_sum = sr_utils.ck_sum((void*)sr_icmp_hdr);
+    return icmp_header;
+}
+
+struct sr_ethernet_hdr *create_ethernet_header(uint8_t[] ether_dhost, uint8_t[] ether_shost, uint16_t ether_type) {
+    struct sr_ethernet_hdr* ethernet_hdr = malloc(sizeof(struct sr_ethernet_hdr));
+    ethernet_hdr->ether_dhost = ether_dhost;
+    ethernet_hdr->ether_shost = ether_shost;
+    ethernet_hdr->ether_type = ether_type;
+
+    return ethernet_hdr;
+}
 
 /* Prints out formatted Ethernet address, e.g. 00:11:22:33:44:55 */
 void print_addr_eth(uint8_t *addr) {
