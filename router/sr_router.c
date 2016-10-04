@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 #include <assert.h>
-
+#include <string.h>
 
 #include "sr_if.h"
 #include "sr_rt.h"
@@ -21,6 +21,10 @@
 #include "sr_protocol.h"
 #include "sr_arpcache.h"
 #include "sr_utils.h"
+
+/* Sizes in bytes */
+#define ETHERNET_HDR_SIZE 14
+#define IP_HDR_SIZE 20
 
 /*---------------------------------------------------------------------
  * Method: sr_init(void)
@@ -67,26 +71,39 @@ void sr_init(struct sr_instance* sr)
  *---------------------------------------------------------------------*/
 
 void sr_handlepacket(struct sr_instance* sr,
-        uint8_t * packet/* lent */,
+        uint8_t *packet/* lent */,
         unsigned int len,
         char* interface/* lent */)
 {
-    /* REQUIRES */
-    assert(sr);
-    assert(packet);
-    assert(interface);
+  /* REQUIRES */
+  assert(sr);
+  assert(packet);
+  assert(interface);
 
-    printf("*** -> Received packet of length %d \n",len);
-    ip_packet = parse out ip packet from packet;
+  printf("*** -> Received packet of length %d \n",len);
+  ip_packet = parse out ip packet from packet;
 
-    /* fill in code here */
-    struct handled_ip_packet = sr_handle_ippacket_self(sr, (sr_ip_hdr_t*) null));
+  /* fill in code here */
 
+  sr_ethernet_hdr *ethernet_hdr = sr_extract_ethernet_hdr(packet);
+  unsigned int ip_packet_len = len - ETHERNET_HDR_SIZE;
+  uint8_t *ip_packet = sr_extract_ip_packet(ethernet_hdr, ip_packet_len);
+  sr_ip_hdr *ip_hdr = sr_extract_ip_hdr(ip_packet);
+
+  // Check if we are recipient, where to get self_mac_address?
+  if (ethernet_hdr->ether_dhost == self_mac_address) {
+    // Allen's code
+    struct sr_icmp_hdr* handled_ip_packet = sr_handle_ip_packet_self(sr, (sr_ip_hdr_t*) null);
     if (handled_ip_packet != null) {
-        //create_ethernet_hdr(sr, [0,0,0,0,0,0], sr);
-        //sr_vns_comm.sr_send_packet(sr, )
+      //create_ethernet_hdr(sr, [0,0,0,0,0,0], sr);
+      //sr_vns_comm.sr_send_packet(sr, )
     }
-}/* end sr_ForwardPacket */
+  } else {
+    // forward packet
+    sr_handle_packet_forwarding(sr, ip_packet, ip_hdr)
+  }
+}/* end sr_handlepacket */
+
 
 struct sr_icmp_hdr* sr_handle_ip_packet_self(struct sr_instance* sr, struct sr_ip_hdr_t* ip_packet) {
     struct sr_icmp_hdr* icmp_header = null;
@@ -102,4 +119,36 @@ struct sr_icmp_hdr* sr_handle_ip_packet_self(struct sr_instance* sr, struct sr_i
     }
 
     return sr_icmp_hdr;
+}
+
+struct sr_ethernet_hdr_t *sr_extract_ethernet_hdr(uint8_t *ethernet_packet) {
+  struct sr_ethernet_hdr* ethernet_hdr  = malloc(sizeof(struct sr_ethernet_hdr));
+  memcpy(sr_ethernet_hdr, ethernet_packet, ETHERNET_HDR_SIZE)
+  return ethernet_hdr;
+}
+
+uint8_t *sr_extract_ip_packet(uint8_t *ethernet_packet, unsigned int ip_packet_len) {
+  uint8_t *ip_packet = malloc(ip_packet_len);
+  memcpy(ip_packet, ethernet_packet + ETHERNET_HDR_SIZE, ip_packet_len);
+  return ip_packet;
+}
+
+// Get ip header from ip packet, returned sr_ip_hdr points to the same address as ip_packet
+struct sr_ip_hdr *sr_extract_ip_hdr(uint8_t *ip_packet) {
+  uint8_t *ip_hdr = ip_packet;
+  return (struct sr_ip_hdr*) ip_hdr;
+}
+
+bool sr_handle_packet_forwarding(sr_instance *sr, uint8_t *ip_packet, sr_ip_hdr *ip_hdr, unsigned int ip_packet_len) {
+  if (!sr_ip_packet_is_valid(ip_packet, ip_packet_len)) return false;
+  ip_hdr->ip_ttl -= 1;
+  ip_hdr->ip_sum = cksum(ip_packet, ip_packet_len);
+  // Gordon's code goes here
+}
+
+// Check for packet minimum length and checksum
+bool sr_ip_packet_is_valid(uint8_t *ip_packet, unsigned int ip_packet_len) {
+  if (ip_packet_len < IP_HDR_SIZE) return false;
+  if (cksum(ip_packet, ip_packet_len) != 0xffff) return false;
+  return true;
 }
