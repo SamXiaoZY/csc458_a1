@@ -70,9 +70,20 @@
 #include <time.h>
 #include <pthread.h>
 #include "sr_if.h"
+#include "sr_rt.h"
+#include "sr_utils.h"
 
 #define SR_ARPCACHE_SZ    100  
 #define SR_ARPCACHE_TO    15.0
+
+/*Added defines*/
+#define ICMP_DEST_UNREACHABLE 3
+#define PORT_UNREACHABLE 3
+#define HOST_UNREACHABLE 1
+#define ECHO_REPLY 0
+#define ICMP_TIME_EXCEEDED 11
+#define TIME_EXPIRED 1
+
 
 struct sr_packet {
     uint8_t *buf;               /* A raw Ethernet frame, presumably with the dest MAC empty */
@@ -148,6 +159,19 @@ int   sr_arpcache_destroy(struct sr_arpcache *cache);
 void *sr_arpcache_timeout(void *cache_ptr);
 
 /*helper functions */
-void handle_arpreq(struct sr_arpreq* req, struct sr_arpcache* cache);
+void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr);
+char* get_interface_from_mac(uint8_t *ether_shost, struct sr_instance* sr);
+struct sr_rt* get_Node_From_RoutingTable(struct sr_instance* sr, uint32_t ip);
+char* find_if_by_mac(struct sr_instance* sr, uint8_t *ether_shost);
+
+sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if);
+
+uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len);
+
+sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
+                                      uint16_t unused,uint16_t next_mtu,uint8_t* ipHdr, uint8_t len, uint8_t* datagram);
+sr_icmp_hdr_t* createICMPhdr(uint8_t icmp_type, uint8_t icmp_code);
+
+sr_arp_hdr_t* createARPRequestHdr();
 
 #endif
