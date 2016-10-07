@@ -4,7 +4,7 @@
 #include "sr_protocol.h"
 #include "sr_utils.h"
 
-
+// Creates the checksum of the first len bytes of _data
 uint16_t cksum (const void *_data, int len) {
   const uint8_t *data = _data;
   uint32_t sum;
@@ -19,6 +19,10 @@ uint16_t cksum (const void *_data, int len) {
   return sum ? sum : 0xffff;
 }
 
+bool verify_cksum (const void *_data, int len, uint16_t cksum) {
+  // Get the complement of the recomputed checksum to get the sum of all 16
+  return ~cksum(_data, len) + cksum == 0;
+}
 
 uint16_t ethertype(uint8_t *buf) {
   sr_ethernet_hdr_t *ehdr = (sr_ethernet_hdr_t *)buf;
@@ -32,9 +36,19 @@ uint8_t ip_protocol(uint8_t *buf) {
 
 struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code) {
     struct sr_icmp_hdr* icmp_header = malloc(sizeof(struct sr_icmp_hdr));
-    icmp_header->type = type;
-    icmp_header->code = code;
-    icmp_header->icmp_sum = sr_utils.ck_sum((void*)sr_icmp_hdr);
+    icmp_header->icmp_type = type;
+    icmp_header->icmp_code = code;
+    icmp_header->icmp_sum = ck_sum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr) / 8);
+    return icmp_header;
+}
+
+struct sr_icmp_t3_hdr *create_icmp_t3_header(uint8_t type, uint8_t code, uint16_t next_mtu, uint8_t *data) {
+    struct sr_icmp_t3_hdr* icmp_header = malloc(sizeof(struct sr_icmp_t3_hdr));
+    icmp_header->icmp_type = type;
+    icmp_header->icmp_code = code;
+    icmp_header->next_mtu = next_mtu;
+    icmp_header->data = data;
+    icmp_header->icmp_sum = ck_sum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr) / 8);
     return icmp_header;
 }
 
