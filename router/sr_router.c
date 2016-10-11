@@ -21,11 +21,7 @@
 #include "sr_protocol.h"
 #include "sr_arpcache.h"
 #include "sr_utils.h"
-
-/* Sizes in bytes */
-#define ETHERNET_HDR_SIZE 14
-#define IP_HDR_SIZE 20
-
+ 
 /*---------------------------------------------------------------------
  * Method: sr_init(void)
  * Scope:  Global
@@ -148,10 +144,11 @@ void sr_handle_packet_reply(struct sr_instance* sr, struct sr_ip_hdr* ip_packet)
       ip_packet->ip_ttl = INIT_TTL;
       ip_packet->ip_p = sr_ip_protocol.ip_protocol_icmp;
 
-      // TODO: Insert append icmp packet to ip packet
-
-      ip_packet->ip_len = 0; //TODO: Calculate new ip header length
+      ip_packet->ip_len = sizeof(struct sr_ip_hdr) + sizeof(icmp_header); //TODO: Calculate new ip header length
       ip_packet->ip_sum = cksum(ip_packet, ip_packet->ip_len);
+
+      // TODO: Insert append icmp packet to ip packet
+      ip_packet = icmp_header;
 
       // TODO: Append ip packet to ethernet packet and send;
     }
