@@ -105,10 +105,11 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 fprintf(stderr, "problem\n");
             }
 
+            uint32_t broadcastAddr= 0xFFFFFFFF;
+
             uint8_t *arp_packet = createEthernetHdr(
-                newArpReq->ar_tha, newArpReq->ar_sha, ethertype_arp, (uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
+                broadcastAddr, newArpReq->ar_sha, ethertype_arp, (uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
             sr_send_packet(sr, (uint8_t *) arp_packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t), sr_if->name);
-            /*figure out how to sent ARP request, possible use the queue function listed below*/
             req->sent = time(NULL);
             req->times_sent++;
         }
