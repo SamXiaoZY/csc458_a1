@@ -42,9 +42,9 @@ uint8_t ip_protocol(uint8_t *buf) {
 
 struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code) {
     struct sr_icmp_hdr* icmp_header = malloc(sizeof(struct sr_icmp_hdr));
-    icmp_header->icmp_type = type;
-    icmp_header->icmp_code = code;
-    icmp_header->icmp_sum = cksum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr));
+    icmp_header->icmp_type = htons(type);
+    icmp_header->icmp_code = htons(code);
+    icmp_header->icmp_sum = htons(cksum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr)));
     return icmp_header;
 }
 
@@ -66,19 +66,17 @@ sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
 
 sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol) {
     sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t) + size); 
-    output->ip_v = 4; // IPv4
-    output->ip_hl = 5; // No options
-    output->ip_tos = 0; // Best effort
+    output->ip_tos = htons(0); // Best effort
     output->ip_len = htons(size);
-    output->ip_id = 0; // No ip fragments
-    output->ip_off = 0; // No ip fragments(offset)
-    output->ip_ttl = INIT_TTL;
-    output->ip_p = protocol;
+    output->ip_id = htons(0); // No ip fragments
+    output->ip_off = htons(0); // No ip fragments(offset)
+    output->ip_ttl = htons(INIT_TTL);
+    output->ip_p = htons(protocol);
     output->ip_src = htonl(ip_src);
     output->ip_dst = htonl(ip_dst);
 
     uint16_t checksum = cksum(output, sizeof(sr_ip_hdr_t));
-    output->ip_sum = cksum;
+    output->ip_sum = htonl(cksum);
 
     memcpy(&(uint8_t*)output[sizeof(sr_ip_hdr_t)], data, size);
     return output;
@@ -93,7 +91,7 @@ uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t 
     memcpy(&output[ETHER_ADDR_LEN*2], &ethertype, sizeof(uint16_t));
     memcpy(&output[ETHER_ADDR_LEN*2+sizeof(uint16_t)], data, len);
 
-    uint16_t sum = cksum(output,sizeof(sr_ethernet_hdr_t)+len);
+    uint16_t sum = htonl(cksum(output,sizeof(sr_ethernet_hdr_t)+len));
 
     memcpy(&output[sizeof(sr_ethernet_hdr_t)+len], &sum, sizeof(uint16_t));
 
