@@ -73,8 +73,17 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 memcpy(datagram, &packet->buf[sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t)], 8);
                 uint32_t imcp_destination = ntohl(currIPHdr->ip_src);
 
+                struct sr_rt* targetRT = getInterfaceLongestMatch(sr->routing_table, uint32_t imcp_destination);
+                struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
 
+                uint32_t IPSrc = htonl(targetInterface);
 
+                sr_icmp_t3_hdr_t* sendICMPPacket = createICMPt3hdr(3,1,0,0, currIPHdr,sizeof(sr_ip_hdr_t), datagram);
+                sr_ip_hdr_t* sendIPHeader = createIPHdr(sendICMPPacket,sizeof(sr_icmp_t3_hdr), IPSrc, uint32_t imcp_destination, uint8_t ip_protocol_icmp);
+                sr_ethernet_hdr_t* sendEthernet = createEthernetHdr(currEthHdr->ether_shost, currEthHdr->ether_dhost,
+                                    ethertype_ip, sendIPHeader, sizeof(sendIPHeader)+sizeof(sendICMPPacket));
+
+                sr_send_packet(sr, sendEthernet, sizeof(sr_ethernet_hdr_t)+sizeof(sendIPHeader)+sizeof(sendICMPPacket))
                 /*create ICMP packet and send it*/
 
                 packet = packet->next;
@@ -188,6 +197,56 @@ sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
 
 sr_icmp_hdr_t* createICMPhdr(uint8_t icmp_type, uint8_t icmp_code){
 
+}
+
+struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP){
+
+    struct sr_rt* currRTEntry = routingTable;
+    int longestMask = 0;
+    struct sr_rt* output = NULL;
+
+    while(currRTEntry){
+
+        if(targetIPMatchesEntry(ntohl(currRTEntry->dest), currRTEntry->mask, targetIP)==1){
+            if(currRTEntry->mask > longestMask){
+                longestMask = currRTEntry->mask;
+                output = currRTEntry;
+            }
+        }
+        currRTEntry = currRTEntry->next;
+    }
+}
+
+/*returns 1 for true, 0 for false, make sure inputs are in host order*/
+int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target){
+    uint32_t testMask = 0xFFFFFFFF;
+    testMask = testMask << 32-mask;
+
+    if(entry & testMask == dest & testMask){
+        return 1;
+    }
+    return 0;
+}
+
+sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol){
+    sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t)+size); 
+
+    output->ip_v = 4;
+    output->ip_hl = 5;
+    output->ip_tos = 0;
+    output->ip_len = htons(size);
+    output->ip_id = 0;
+    output->ip_off = 0;
+    output->ip_ttl = INIT_TTL;
+    output->ip_p = protocol;
+    output->ip_src = htonl(ip_src);
+    output->ip_dst = htonl(ip_dst);
+
+    uint16_t checksum = cksum(output, sizeof(sr_ip_hdr_t));
+    output->ip_sum = ck_sum;
+
+    memcpy(&(uint8_t*)output[sizeof(sr_ip_hdr_t)], data, size);
+    return output;
 }
 
 
