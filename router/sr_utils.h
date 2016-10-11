@@ -34,11 +34,12 @@ int verify_cksum(const void *_data, uint16_t cksum);
 uint16_t ethertype(uint8_t *buf);
 uint8_t ip_protocol(uint8_t *buf);
 struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code);
-struct sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
-                                      uint16_t unused,uint16_t next_mtu,
-                                      uint8_t* ipHdr, uint8_t* datagram);
-struct sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol);
+
+/*originally from arpcache*/
 uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len);
+sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol);
+sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
+                                      uint16_t unused,uint16_t next_mtu,uint8_t* ipHdr, uint8_t len, uint8_t* datagram);
 
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);
