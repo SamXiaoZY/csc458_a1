@@ -50,7 +50,7 @@ struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code) {
 
 sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
                                       uint16_t unused,uint16_t next_mtu,
-                                      uint8_t* ipHdr, uint8_t* datagram){
+                                      uint8_t* ipHdr, uint8_t* datagram) {
     struct sr_icmp_t3_hdr* output = malloc(sizeof(sr_icmp_t3_hdr_t) + IP_HDR_SIZE + DATAGRAM_SIZE);
     output->icmp_type = icmp_type;
     output->icmp_code = icmp_code;
@@ -65,7 +65,7 @@ sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
 }
 
 sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol) {
-    sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t)+size); 
+    sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t) + size); 
     output->ip_v = 4; // IPv4
     output->ip_hl = 5; // No options
     output->ip_tos = 0; // Best effort
