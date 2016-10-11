@@ -29,7 +29,7 @@
 #define SR_UTILS_H
 
 uint16_t cksum(const void *_data, int len);
-bool verify_cksum(const void *_data, uint16_t cksum);
+int verify_cksum(const void *_data, uint16_t cksum);
 
 uint16_t ethertype(uint8_t *buf);
 uint8_t ip_protocol(uint8_t *buf);

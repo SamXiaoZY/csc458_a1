@@ -21,7 +21,7 @@
 #include "sr_protocol.h"
 #include "sr_arpcache.h"
 #include "sr_utils.h"
- 
+
 /*---------------------------------------------------------------------
  * Method: sr_init(void)
  * Scope:  Global
@@ -91,7 +91,7 @@ void sr_handlepacket(struct sr_instance* sr,
 
   // Check if we are recipient of the packet
   if (sr_is_packet_recipient(sr, ip_packet)) {
-    sr_handle_packet_reply(sr, (sr_ip_hdr_t*) ip_packet);
+    sr_handle_packet_reply(sr, (sr_ip_hdr_t*) ip_packet, ethernet_hdr);
   } else {
     // forward packet
     sr_handle_packet_forwarding(sr, ip_packet, ip_hdr);
@@ -113,7 +113,7 @@ bool sr_is_packet_recipient(struct sr_instance *sr, uint8_t *ip_packet) {
   return false;
 }
 
-void sr_handle_packet_reply(struct sr_instance* sr, struct sr_ip_hdr* ip_packet) {
+void sr_handle_packet_reply(struct sr_instance* sr, struct sr_ip_hdr* ip_packet, struct sr_ethernet_hdr* ethernet_hdr) {
   // Return a port unreachable for UDP or TCP type packets through a icmp_t3_header
   if (ip_packet->ip_p == sr_ip_protocol.ip_protocol_tcp || ip_packet->ip_p == sr_ip_protocol.ip_protocol_udp) {
     struct sr_icmp_t3_hdr* icmp_header = create_icmp_header(
@@ -127,31 +127,9 @@ void sr_handle_packet_reply(struct sr_instance* sr, struct sr_ip_hdr* ip_packet)
   } else if (ip_packet->ip_p == sr_ip_protocol.ip_protocol_icmp && 
     ck_sum(ip_packet, ip_packet->ip_len))) {
     // If the packet is a valid ICMP echo request, send an echo reply through a icmp_header
-    struct sr_icmp_hdr* icmp_header = create_icmp_hdr(sr_icmp_type.icmp_type_echo_reply, sr_icmp_code.icmp_code_0);
+    struct sr_icmp_hdr * icmp_hdr  = create_icmp_header(sr_icmp_type.icmp_type_echo_reply, sr_icmp_code.icmp_code_0);
 
-    // TODO: create the appropriate ethernet/ip headers and then send. Clean up/refactor code
-    // for creation/sending 
-    if (icmp_header != null) {
-      uint32_t temp_ether_shost = ethernet_hdr->ether_shost;
-
-      ethernet_hdr->ether_shost = ethernet_hdr->ether_dhost;
-      ethernet_hdr->dhost = sr_arpcache_lookup(sr->sr_arpcache, temp_ether_shost);
-
-      uint32_t temp_ip_src = ip_packet->ip_src;
-
-      ip_packet->ip_src = ip_packet->ip_dst;
-      ip_packet->ip_dst = temp_ip_src;
-      ip_packet->ip_ttl = INIT_TTL;
-      ip_packet->ip_p = sr_ip_protocol.ip_protocol_icmp;
-
-      ip_packet->ip_len = sizeof(struct sr_ip_hdr) + sizeof(icmp_header); //TODO: Calculate new ip header length
-      ip_packet->ip_sum = cksum(ip_packet, ip_packet->ip_len);
-
-      // TODO: Insert append icmp packet to ip packet
-      ip_packet = icmp_header;
-
-      // TODO: Append ip packet to ethernet packet and send;
-    }
+    createAndSendICMPPacket(sr, ip_packet, (uint8_t *)icmp_hdr, sizeof(icmp_hdr), ethernet_hdr->ether_shost, ethernet_hdr->ether_dhost);
   }
 }
 
@@ -193,4 +171,22 @@ bool sr_handle_packet_forwarding(struct sr_instance *sr, uint8_t *ip_packet, str
 bool sr_ip_packet_is_valid(uint8_t *ip_packet, unsigned int ip_packet_len) {
   return ip_packet_len >= IP_HDR_SIZE && 
     verify_cksum(ip_packet, ip_packet_len, ip_packet->ip_sum);
+}
+
+void createAndSendICMPPacket(struct sr_instance* sr, struct sr_ip_hdr* ip_packet, uint8_t* data, uint8_t size, uint8_t* ether_source, uint8_t* ether_dest) {
+  // Create ip packet by wrapping it over the icmp packet
+  struct sr_ip_hdr_t* ip_hdr = createIPHdr(data, 
+      size, 
+      ip_packet->ip_dst, 
+      ip_packet->ip_src,
+      sr_ip_protocol.ip_protocol_icmp);
+
+  // Create ethernet packet by wrapping it over the ip packet
+  uint8_t * eth_hdr = createEthernetHdr(sr_arpcache_lookup(sr->sr_arpcache, ether_source),
+      ether_dest,
+      sr_ethertype.ethertype_ip,
+      (uint8_t *) ip_hdr,
+      sizeof(struct eth_hdr*) + ip_hdr->ip_len);
+
+  sr_send_packet(sr, eth_hdr, sizeof(eth_hdr), get_interface_from_mac(eth_hdr->ether_dhost, sr));
 }

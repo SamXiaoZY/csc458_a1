@@ -25,7 +25,7 @@ uint16_t cksum (const void *_data, int len) {
   return sum ? sum : 0xffff;
 }
 
-bool verify_cksum (const void *_data, int len, uint16_t cksum) {
+int verify_cksum (const void *_data, int len, uint16_t cksum) {
   // Get the complement of the recomputed checksum to get the sum of all 16
   return ~cksum(_data, len) + cksum == 0;
 }
@@ -64,15 +64,14 @@ sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
     return output;
 }
 
-sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol){
+sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol) {
     sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t)+size); 
-
-    output->ip_v = 4;
-    output->ip_hl = 5;
-    output->ip_tos = 0;
+    output->ip_v = 4; // IPv4
+    output->ip_hl = 5; // No options
+    output->ip_tos = 0; // Best effort
     output->ip_len = htons(size);
-    output->ip_id = 0;
-    output->ip_off = 0;
+    output->ip_id = 0; // No ip fragments
+    output->ip_off = 0; // No ip fragments(offset)
     output->ip_ttl = INIT_TTL;
     output->ip_p = protocol;
     output->ip_src = htonl(ip_src);
