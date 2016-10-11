@@ -37,6 +37,13 @@ struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code);
 struct sr_icmp_t3_hdr *create_icmp_t3_header(uint8_t type, uint8_t code, uint16_t next_mtu, uint8_t *data);
 struct sr_ethernet_hdr *create_ethernet_header(uint8_t *ether_dhost, uint8_t *ether_shost, uint16_t ether_type);
 
+
+sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol){
+sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
+                                      uint16_t unused,uint16_t next_mtu,
+                                      uint8_t* ipHdr, uint8_t len, uint8_t* datagram)
+uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len)
+
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);
 void print_addr_ip_int(uint32_t ip);
@@ -48,5 +55,4 @@ void print_hdr_arp(uint8_t *buf);
 
 /* prints all headers, starting from eth */
 void print_hdrs(uint8_t *buf, uint32_t length);
-
 #endif /* -- SR_UTILS_H -- */

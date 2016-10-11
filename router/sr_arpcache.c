@@ -10,6 +10,7 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_protocol.h"
+#include "s.h"
 
 /* 
   This function gets called every second. For each request sent out, we keep
@@ -78,7 +79,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
 
                 uint32_t IPSrc = htonl(targetInterface);
 
-                sr_icmp_t3_hdr_t* sendICMPPacket = createICMPt3hdr(3,1,0,0, currIPHdr,sizeof(sr_ip_hdr_t), datagram);
+                sr_icmp_t3_hdr_t* sendICMPPacket = createICMPt3hdr(3, 1, 0, 0, currIPHdr, datagram);
                 sr_ip_hdr_t* sendIPHeader = createIPHdr(sendICMPPacket,sizeof(sr_icmp_t3_hdr), IPSrc, uint32_t imcp_destination, uint8_t ip_protocol_icmp);
                 sr_ethernet_hdr_t* sendEthernet = createEthernetHdr(currEthHdr->ether_shost, currEthHdr->ether_dhost,
                                     ethertype_ip, sendIPHeader, sizeof(sendIPHeader)+sizeof(sendICMPPacket));
@@ -114,23 +115,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
 
     }
 }
-
-uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len){
-
-    uint8_t* output = malloc(sizeof(sr_ethernet_hdr_t)+len+sizeof(uint16_t));
-
-    memcpy(&output[0], ether_dhost, ETHER_ADDR_LEN);
-    memcpy(&output[ETHER_ADDR_LEN], ether_shost, ETHER_ADDR_LEN);
-    memcpy(&output[ETHER_ADDR_LEN*2], &ethertype, sizeof(uint16_t));
-    memcpy(&output[ETHER_ADDR_LEN*2+sizeof(uint16_t)], data, len);
-
-    uint16_t sum = cksum(output,sizeof(sr_ethernet_hdr_t)+len);
-
-    memcpy(&output[sizeof(sr_ethernet_hdr_t)+len], &sum, sizeof(uint16_t));
-
-    return output;
-}
-    
+ 
 sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if) {
   sr_arp_hdr_t *output = malloc(sizeof(sr_arp_hdr_t));
 
@@ -180,24 +165,6 @@ char* get_interface_from_mac(uint8_t *ether_shost, struct sr_instance* sr){
     return NULL;
 }
 
-sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
-                                      uint16_t unused,uint16_t next_mtu,
-                                      uint8_t* ipHdr, uint8_t len, uint8_t* datagram){
-    struct sr_icmp_t3_hdr* output = malloc(sizeof(sr_icmp_t3_hdr_t)+len+8);
-    output->icmp_type = icmp_type;
-    output->icmp_code = icmp_code;
-    
-    memcpy(&output->data[0], ipHdr, len);
-    memcpy(&output->data[len], datagram, 8);
-    
-    output->icmp_sum = cksum(output, sizeof(sr_icmp_t3_hdr_t)+len+8);
-    
-    return output;
-}
-
-sr_icmp_hdr_t* createICMPhdr(uint8_t icmp_type, uint8_t icmp_code){
-
-}
 
 struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP){
 
@@ -227,28 +194,6 @@ int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target){
     }
     return 0;
 }
-
-sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol){
-    sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t)+size); 
-
-    output->ip_v = 4;
-    output->ip_hl = 5;
-    output->ip_tos = 0;
-    output->ip_len = htons(size);
-    output->ip_id = 0;
-    output->ip_off = 0;
-    output->ip_ttl = INIT_TTL;
-    output->ip_p = protocol;
-    output->ip_src = htonl(ip_src);
-    output->ip_dst = htonl(ip_dst);
-
-    uint16_t checksum = cksum(output, sizeof(sr_ip_hdr_t));
-    output->ip_sum = ck_sum;
-
-    memcpy(&(uint8_t*)output[sizeof(sr_ip_hdr_t)], data, size);
-    return output;
-}
-
 
 /* You should not need to touch the rest of this code. */
 

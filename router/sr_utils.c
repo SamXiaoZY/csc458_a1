@@ -4,6 +4,12 @@
 #include "sr_protocol.h"
 #include "sr_utils.h"
 
+/* Sizes in bytes */
+#define ETHERNET_HDR_SIZE 14
+#define IP_HDR_SIZE 20
+#define DATAGRAM_SIZE 8
+
+
 // Creates the checksum of the first len bytes of _data
 uint16_t cksum (const void *_data, int len) {
   const uint8_t *data = _data;
@@ -38,17 +44,7 @@ struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code) {
     struct sr_icmp_hdr* icmp_header = malloc(sizeof(struct sr_icmp_hdr));
     icmp_header->icmp_type = type;
     icmp_header->icmp_code = code;
-    icmp_header->icmp_sum = ck_sum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr) / 8);
-    return icmp_header;
-}
-
-struct sr_icmp_t3_hdr *create_icmp_t3_header(uint8_t type, uint8_t code, uint16_t next_mtu, uint8_t *data) {
-    struct sr_icmp_t3_hdr* icmp_header = malloc(sizeof(struct sr_icmp_t3_hdr));
-    icmp_header->icmp_type = type;
-    icmp_header->icmp_code = code;
-    icmp_header->next_mtu = next_mtu;
-    icmp_header->data = data;
-    icmp_header->icmp_sum = ck_sum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr) / 8);
+    icmp_header->icmp_sum = cksum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr));
     return icmp_header;
 }
 
@@ -213,3 +209,57 @@ void print_hdrs(uint8_t *buf, uint32_t length) {
   }
 }
 
+sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
+                                      uint16_t unused,uint16_t next_mtu,
+                                      uint8_t* ipHdr, uint8_t* datagram){
+    struct sr_icmp_t3_hdr* output = malloc(sizeof(sr_icmp_t3_hdr_t) + IP_HDR_SIZE + DATAGRAM_SIZE);
+    output->icmp_type = icmp_type;
+    output->icmp_code = icmp_code;
+    output->next_mtu = next_mtu;
+    
+    memcpy(&output->data[0], ipHdr, len);
+    memcpy(&output->data[IP_HDR_SIZE], datagram, DATAGRAM_SIZE);
+    
+    output->icmp_sum = cksum(output, sizeof(sr_icmp_t3_hdr_t) + IP_HDR_SIZE + DATAGRAM_SIZE);
+    
+    return output;
+}
+
+sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol){
+    sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t)+size); 
+
+    output->ip_v = 4;
+    output->ip_hl = 5;
+    output->ip_tos = 0;
+    output->ip_len = htons(size);
+    output->ip_id = 0;
+    output->ip_off = 0;
+    output->ip_ttl = INIT_TTL;
+    output->ip_p = protocol;
+    output->ip_src = htonl(ip_src);
+    output->ip_dst = htonl(ip_dst);
+
+    uint16_t checksum = cksum(output, sizeof(sr_ip_hdr_t));
+    output->ip_sum = cksum;
+
+    memcpy(&(uint8_t*)output[sizeof(sr_ip_hdr_t)], data, size);
+    return output;
+}
+
+
+uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len){
+
+    uint8_t* output = malloc(sizeof(sr_ethernet_hdr_t)+len+sizeof(uint16_t));
+
+    memcpy(&output[0], ether_dhost, ETHER_ADDR_LEN);
+    memcpy(&output[ETHER_ADDR_LEN], ether_shost, ETHER_ADDR_LEN);
+    memcpy(&output[ETHER_ADDR_LEN*2], &ethertype, sizeof(uint16_t));
+    memcpy(&output[ETHER_ADDR_LEN*2+sizeof(uint16_t)], data, len);
+
+    uint16_t sum = cksum(output,sizeof(sr_ethernet_hdr_t)+len);
+
+    memcpy(&output[sizeof(sr_ethernet_hdr_t)+len], &sum, sizeof(uint16_t));
+
+    return output;
+}
+   
