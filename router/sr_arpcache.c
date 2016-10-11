@@ -25,45 +25,230 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
     /* I don't think lock is needed*/
     struct sr_arpcache cache = sr->cache;
     struct sr_arpreq* currReq = cache.requests;
-
-
-    handle_arpreq(currReq, &cache);
+    struct sr_arpreq* currReqCpy = currReq;
+    while(currReq != NULL){
+        currReqCpy = currReq;
+        currReq = currReq->next;
+        handle_arpreq(currReq, sr);
+    }
 }
 
-void handle_arpreq(struct sr_arpreq* req, struct sr_arpcache* cache){
+void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
     
     /*WARNING MAY NOT WORK IF THE FIRST PACKET in req->packets is EMPTY.8?*/
 
     /*this is a linked list of packets depending on the ARP request*/
-    struct sr_packet *packets = req->packets;
+    struct sr_packet *packet = req->packets;
 
     time_t curtime = time(NULL);
     if(difftime(curtime, req->sent) > 1.0){
-        if(req->times_sent > 5){
+        if(req->times_sent >= 5){
             /*sent ICMP unreachable to all packets waiting on this ARPReq*/
-            while(packets != NULL){
+            while(packet != NULL){
+
+                if(packet->len < sizeof(sr_ethernet_hdr_t)){
+                    fprintf(stderr, "Packet ignored due to length (short)\n");
+                    packet = packet->next;
+                    continue;
+                }
 
                 /*NEED TO CHECK IF RAW ETHERNET FRAME HAS 8 BYTE PREAMBLE */
-                sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packets->buf;
-                sr_ip_hdr_t* currIPHdr = (sr_ip_hdr_t*) &(packets->buf[sizeof(sr_ethernet_hdr_t)]);
-                /*This should be an IP packet*/
-                /*SEND ETHERNET PACK WITH ICMP PACKET INSIDE IT*/
+                sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packet->buf;
+                if(currEthHdr->ether_type != ethertype_ip){
+                    fprintf(stderr, "Packet ignored due to unrecognized ether type: %d\n",currEthHdr->ether_type);
+                    packet = packet->next;
+                    continue;
+                }
 
+                char *outgoingInterface = get_interface_from_mac(currEthHdr->ether_dhost, sr);
+                if(!outgoingInterface){
+                    fprintf(stderr, "Packet ignored due to not being able to find outgoing interface.\n");
+                    packet = packet->next;
+                    continue;
+                }
 
+                /*need to verify*/
+                sr_ip_hdr_t* currIPHdr = (sr_ip_hdr_t*) &(packet->buf[sizeof(sr_ethernet_hdr_t)]);
+                uint8_t* datagram = malloc(8);
+                memcpy(datagram, &packet->buf[sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t)], 8);
+                uint32_t imcp_destination = ntohl(currIPHdr->ip_src);
 
-                packets = packets->next;
+                struct sr_rt* targetRT = getInterfaceLongestMatch(sr->routing_table, uint32_t imcp_destination);
+                struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
+
+                uint32_t IPSrc = htonl(targetInterface);
+
+                sr_icmp_t3_hdr_t* sendICMPPacket = createICMPt3hdr(3,1,0,0, currIPHdr,sizeof(sr_ip_hdr_t), datagram);
+                sr_ip_hdr_t* sendIPHeader = createIPHdr(sendICMPPacket,sizeof(sr_icmp_t3_hdr), IPSrc, uint32_t imcp_destination, uint8_t ip_protocol_icmp);
+                sr_ethernet_hdr_t* sendEthernet = createEthernetHdr(currEthHdr->ether_shost, currEthHdr->ether_dhost,
+                                    ethertype_ip, sendIPHeader, sizeof(sendIPHeader)+sizeof(sendICMPPacket));
+
+                sr_send_packet(sr, sendEthernet, sizeof(sr_ethernet_hdr_t)+sizeof(sendIPHeader)+sizeof(sendICMPPacket))
+                /*create ICMP packet and send it*/
+
+                packet = packet->next;
             }
-            sr_arpreq_destroy(cache, req);
+            sr_arpreq_destroy(&sr->cache, req);
         }
         else{/*req->times_sent <= 5*/
 
+            struct sr_rt* rt;
+            rt = get_Node_From_RoutingTable(sr, req->ip);
+            if(!rt){
+                fprintf(stderr, "problem\n");
+            }
+            
+            struct sr_if* sr_if = sr_get_interface(sr, rt->interface);
+            sr_arp_hdr_t *newArpReq = createARPReqHdr(sr, req, sr_if);
+            if(!newArpReq){
+                fprintf(stderr, "problem\n");
+            }
+
+            uint8_t *arp_packet = createEthernetHdr(
+                newArpReq->ar_tha, newArpReq->ar_sha, ethertype_arp, (uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
+            sr_send_packet(sr, (uint8_t *) arp_packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t), sr_if->name);
             /*figure out how to sent ARP request, possible use the queue function listed below*/
             req->sent = time(NULL);
             req->times_sent++;
         }
+
     }
+}
+
+uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len){
+
+    uint8_t* output = malloc(sizeof(sr_ethernet_hdr_t)+len+sizeof(uint16_t));
+
+    memcpy(&output[0], ether_dhost, ETHER_ADDR_LEN);
+    memcpy(&output[ETHER_ADDR_LEN], ether_shost, ETHER_ADDR_LEN);
+    memcpy(&output[ETHER_ADDR_LEN*2], &ethertype, sizeof(uint16_t));
+    memcpy(&output[ETHER_ADDR_LEN*2+sizeof(uint16_t)], data, len);
+
+    uint16_t sum = cksum(output,sizeof(sr_ethernet_hdr_t)+len);
+
+    memcpy(&output[sizeof(sr_ethernet_hdr_t)+len], &sum, sizeof(uint16_t));
+
+    return output;
+}
+    
+sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if) {
+  sr_arp_hdr_t *output = malloc(sizeof(sr_arp_hdr_t));
+
+  output->ar_hrd = htons(0x0001);
+  output->ar_pro = htons(ethertype_ip);
+  output->ar_hln = 0x0006;
+  output->ar_pln = 0x0004;
+  output->ar_op = htons(arp_op_request);
+  output->ar_sip = sr_if->ip;
+  
+  memcpy(&output->ar_sha[0], &sr_if->addr[0], ETHER_ADDR_LEN);
+
+  output->ar_tip = req->ip;
+
+  return output;
+}
+
+struct sr_rt* get_Node_From_RoutingTable(struct sr_instance* sr, uint32_t ip){
+
+  struct sr_rt *rt = sr->routing_table;
+
+  while(rt) {
+    if (rt->gw.s_addr == ip) {
+      return rt;
+    }
+    rt = rt->next;
+  }
+return NULL;
+}
+
+char* get_interface_from_mac(uint8_t *ether_shost, struct sr_instance* sr){
+    struct sr_if* interfaceList = sr->if_list;
+    int i;
+    while(interfaceList){
+
+        /*compare*/ 
+        for(i = 0; i<ETHER_ADDR_LEN; i++){
+            if(interfaceList->addr[i] !=  ether_shost[i]){
+                break;
+            }
+        }
+        if(i == ETHER_ADDR_LEN - 1){
+            return interfaceList->name;
+        }
+        interfaceList = interfaceList->next;
+    }
+    return NULL;
+}
+
+sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
+                                      uint16_t unused,uint16_t next_mtu,
+                                      uint8_t* ipHdr, uint8_t len, uint8_t* datagram){
+    struct sr_icmp_t3_hdr* output = malloc(sizeof(sr_icmp_t3_hdr_t)+len+8);
+    output->icmp_type = icmp_type;
+    output->icmp_code = icmp_code;
+    
+    memcpy(&output->data[0], ipHdr, len);
+    memcpy(&output->data[len], datagram, 8);
+    
+    output->icmp_sum = cksum(output, sizeof(sr_icmp_t3_hdr_t)+len+8);
+    
+    return output;
+}
+
+sr_icmp_hdr_t* createICMPhdr(uint8_t icmp_type, uint8_t icmp_code){
 
 }
+
+struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP){
+
+    struct sr_rt* currRTEntry = routingTable;
+    int longestMask = 0;
+    struct sr_rt* output = NULL;
+
+    while(currRTEntry){
+
+        if(targetIPMatchesEntry(ntohl(currRTEntry->dest), currRTEntry->mask, targetIP)==1){
+            if(currRTEntry->mask > longestMask){
+                longestMask = currRTEntry->mask;
+                output = currRTEntry;
+            }
+        }
+        currRTEntry = currRTEntry->next;
+    }
+}
+
+/*returns 1 for true, 0 for false, make sure inputs are in host order*/
+int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target){
+    uint32_t testMask = 0xFFFFFFFF;
+    testMask = testMask << 32-mask;
+
+    if(entry & testMask == dest & testMask){
+        return 1;
+    }
+    return 0;
+}
+
+sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol){
+    sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t)+size); 
+
+    output->ip_v = 4;
+    output->ip_hl = 5;
+    output->ip_tos = 0;
+    output->ip_len = htons(size);
+    output->ip_id = 0;
+    output->ip_off = 0;
+    output->ip_ttl = INIT_TTL;
+    output->ip_p = protocol;
+    output->ip_src = htonl(ip_src);
+    output->ip_dst = htonl(ip_dst);
+
+    uint16_t checksum = cksum(output, sizeof(sr_ip_hdr_t));
+    output->ip_sum = ck_sum;
+
+    memcpy(&(uint8_t*)output[sizeof(sr_ip_hdr_t)], data, size);
+    return output;
+}
+
 
 /* You should not need to touch the rest of this code. */
 
