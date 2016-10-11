@@ -29,9 +29,13 @@
 #define SR_UTILS_H
 
 uint16_t cksum(const void *_data, int len);
+bool verify_cksum(const void *_data, uint16_t cksum);
 
 uint16_t ethertype(uint8_t *buf);
 uint8_t ip_protocol(uint8_t *buf);
+struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code);
+struct sr_icmp_t3_hdr *create_icmp_t3_header(uint8_t type, uint8_t code, uint16_t next_mtu, uint8_t *data);
+struct sr_ethernet_hdr *create_ethernet_header(uint8_t *ether_dhost, uint8_t *ether_shost, uint16_t ether_type);
 
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);

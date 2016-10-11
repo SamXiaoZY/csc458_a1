@@ -68,6 +68,14 @@ int sr_read_from_server(struct sr_instance* );
 void sr_init(struct sr_instance* );
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 
+bool sr_is_packet_recipient(struct sr_instance *, uint8_t *);
+struct sr_icmp_hdr* get_sr_reply_icmp_header(struct sr_instance*, struct sr_ip_hdr_t*);
+struct sr_ethernet_hdr_t *sr_extract_ethernet_hdr(uint8_t *);
+uint8_t *sr_extract_ip_packet(uint8_t *, unsigned int );
+struct sr_ip_hdr *sr_extract_ip_hdr(uint8_t *);
+bool sr_handle_packet_forwarding(struct sr_instance *, uint8_t *, struct sr_ip_hdr *, unsigned int);
+bool sr_ip_packet_is_valid(uint8_t *, unsigned int);
+
 /* -- sr_if.c -- */
 void sr_add_interface(struct sr_instance* , const char* );
 void sr_set_ether_ip(struct sr_instance* , uint32_t );
