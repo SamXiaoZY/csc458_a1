@@ -41,6 +41,9 @@ sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t I
 sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
                                       uint16_t unused,uint16_t next_mtu,uint8_t* ipHdr, uint8_t len, uint8_t* datagram);
 
+struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP);
+int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target);
+
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);
 void print_addr_ip_int(uint32_t ip);

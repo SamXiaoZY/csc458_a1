@@ -98,6 +98,35 @@ uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t 
     return output;
 }
    
+struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP) {
+
+    struct sr_rt* currRTEntry = routingTable;
+    uint32_t longestMask = 0;
+    struct sr_rt* output = NULL;
+
+    while(currRTEntry){
+
+        if(targetIPMatchesEntry(ntohl((uint32_t)currRTEntry->dest.s_addr), (uint32_t)currRTEntry->mask.s_addr, targetIP)==1){
+            if((uint32_t)currRTEntry->mask.s_addr > longestMask){
+                longestMask = (uint8_t)currRTEntry->mask.s_addr;
+                output = currRTEntry;
+            }
+        }
+        currRTEntry = currRTEntry->next;
+    }
+    return output;
+}
+
+/*returns 1 for true, 0 for false, make sure inputs are in host order*/
+int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target) {
+    uint32_t testMask = 0xFFFFFFFF;
+    testMask = testMask << (32 - mask);
+
+    if((entry & testMask) == (target & testMask)){
+        return 1;
+    }
+    return 0;
+}
 
 /* Prints out formatted Ethernet address, e.g. 00:11:22:33:44:55 */
 void print_addr_eth(uint8_t *addr) {

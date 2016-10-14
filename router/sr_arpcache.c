@@ -197,40 +197,6 @@ sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
     return output;
 }
 
-sr_icmp_hdr_t* createICMPhdr(uint8_t icmp_type, uint8_t icmp_code){
-
-}
-
-struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP){
-
-    struct sr_rt* currRTEntry = routingTable;
-    uint32_t longestMask = 0;
-    struct sr_rt* output = NULL;
-
-    while(currRTEntry){
-
-        if(targetIPMatchesEntry(ntohl((uint32_t)currRTEntry->dest.s_addr), (uint32_t)currRTEntry->mask.s_addr, targetIP)==1){
-            if((uint32_t)currRTEntry->mask.s_addr > longestMask){
-                longestMask = (uint8_t)currRTEntry->mask.s_addr;
-                output = currRTEntry;
-            }
-        }
-        currRTEntry = currRTEntry->next;
-    }
-    return output;
-}
-
-/*returns 1 for true, 0 for false, make sure inputs are in host order*/
-int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target){
-    uint32_t testMask = 0xFFFFFFFF;
-    testMask = testMask << (32 - mask);
-
-    if((entry & testMask) == (target & testMask)){
-        return 1;
-    }
-    return 0;
-}
-
 sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol){
     sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t)+size); 
 

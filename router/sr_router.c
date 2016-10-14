@@ -142,7 +142,24 @@ void sr_handle_packet_forwarding(struct sr_instance *sr, uint8_t *ip_packet, str
   } else {
     ip_hdr->ip_sum = cksum(ip_packet, ip_packet_len);
 
-    // Gordon's code goes here
+    struct sr_rt* longestPrefixIPMatch = getInterfaceLongestMatch(sr->routing_table);
+
+    // Send ICMP network unreachable if the ip cannot be identified through our routing table
+    if (longestPrefixIPMatch == null) {
+      uint8_t* datagram = malloc(sizeof(uint8_t));
+      memcpy(datagram, &ip_packet->buf[sizeof(sr_ip_hdr_t)], DATAGRAM_SIZE);
+
+      struct sr_icmp_t3_hdr* icmp_t3_hdr = createICMPt3hdr(sr_icmp_type.icmp_type_dest_unreachable, 
+        sr_icmp_code.icmp_code_0,
+        0,
+        0,
+        ip_hdr,
+        datagram));
+
+      createAndSendICMPPacket(sr, ethernet_hdr, ip_packet, (uint8_t *)icmp_t3_hdr, sizeof(icmp_t3_hdr);
+    } else {
+      // Gordon's code goes here
+    }
   }
 }
 
