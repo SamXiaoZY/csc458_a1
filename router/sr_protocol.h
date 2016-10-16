@@ -207,8 +207,8 @@ enum sr_arp_hrd_fmt {
 
 struct sr_object
 {
-  uint8_t *object;
-  int len;
+  uint8_t *packet;
+  unsigned int len;
 } __attribute__ ((packed)) ;
 typedef struct sr_object sr_object_t;
 

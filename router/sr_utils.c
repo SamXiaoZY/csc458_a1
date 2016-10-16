@@ -34,54 +34,78 @@ uint8_t ip_protocol(uint8_t *buf) {
   return iphdr->ip_p;
 }
 
-struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code) {
-    struct sr_icmp_hdr* icmp_header = malloc(sizeof(struct sr_icmp_hdr));
-    icmp_header->icmp_type = type;
-    icmp_header->icmp_code = code;
-    icmp_header->icmp_sum = htons(cksum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr)));
-    return icmp_header;
+sr_object_t create_icmp_header(uint8_t type, uint8_t code) {
+  unsigned int icmp_hdr_size = sizeof(sr_icmp_hdr_t);
+  struct sr_icmp_hdr* icmp_header = malloc(icmp_hdr_size);
+  icmp_header->icmp_type = type;
+  icmp_header->icmp_code = code;
+  icmp_header->icmp_sum = htons(cksum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr)));
+  return create_packet(icmp_header, icmp_hdr_size);
 }
 
-struct sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet) {
-    struct sr_icmp_t3_hdr* icmp_t3_hdr = malloc(sizeof(sr_icmp_t3_hdr_t));
-    icmp_t3_hdr->icmp_type = icmp_type;
-    icmp_t3_hdr->icmp_code = icmp_code;
-    icmp_t3_hdr->next_mtu = htons(next_mtu);
+sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet) {
+  unsigned int icmp_hdr_size = sizeof(sr_icmp_t3_hdr_t);
+  struct sr_icmp_t3_hdr* icmp_t3_hdr = malloc(icmp_hdr_size);
+  icmp_t3_hdr->icmp_type = icmp_type;
+  icmp_t3_hdr->icmp_code = icmp_code;
+  icmp_t3_hdr->next_mtu = htons(next_mtu);
 
-    memcpy(icmp_t3_hdr->data, ip_packet, ICMP_DATA_SIZE);
-    icmp_t3_hdr->icmp_sum = htons(cksum(icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t) + ICMP_DATA_SIZE));
-    
-    return icmp_t3_hdr;
+  memcpy(icmp_t3_hdr->data, ip_packet, ICMP_DATA_SIZE);
+  icmp_t3_hdr->icmp_sum = htons(cksum(icmp_t3_hdr, icmp_hdr_size - ICMP_DATA_SIZE));
+
+  return create_packet((uint8_t *)icmp_t3_hdr, icmp_hdr_size);
 }
 
-struct sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol) {
-    sr_ip_hdr_t* output = malloc(sizeof(sr_ip_hdr_t) + size); 
-    output->ip_tos = 0; // Best effort
-    output->ip_len = size;
-    output->ip_id = 0; // No ip fragments
-    output->ip_off = 0; // No ip fragments(offset)
-    output->ip_ttl = htons(INIT_TTL);
-    output->ip_p = protocol;
-    output->ip_src = htonl(ip_src);
-    output->ip_dst = htonl(ip_dst);
-
-    uint16_t checksum = cksum(output, sizeof(sr_ip_hdr_t));
-    output->ip_sum = htonl(cksum);
-
-    memcpy(&(uint8_t*)output[sizeof(sr_ip_hdr_t)], data, size);
-    return output;
+sr_object_t create_packet(uint8_t *packet, unsigned int len) {
+  sr_object_t output;
+  output.packet = packet;
+  output.len = len;
+  return output;
 }
 
-uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len){
 
-    uint8_t* output = malloc(sizeof(sr_ethernet_hdr_t)+len);
+sr_object_t create_combined_packet(uint8_t *hdr, unsigned int hdr_len, uint8_t *data, unsigned int data_len) {
+  sr_object_t output;
+  uint8_t *combinedPacket = malloc(hdr_len + data_len);
+  output.packet = combinedPacket;
+  output.len = hdr_len + data_len;
 
-    memcpy(output, ether_dhost, ETHER_ADDR_LEN);
-    memcpy(output + ETHER_ADDR_LEN, ether_shost, ETHER_ADDR_LEN);
-    memcpy(&output[ETHER_ADDR_LEN*2], &ethertype, sizeof(uint16_t));
-    memcpy(&output[ETHER_ADDR_LEN*2+sizeof(uint16_t)], data, len);
+  memcpy(combinedPacket, hdr, hdr_len);
+  memcpy(combinedPacket + hdr_len, data, data_len);
+  return output;
+}
 
-    return output;
+
+sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst, uint8_t* data, unsigned int len) {
+
+  unsigned int ip_hdr_size = sizeof(sr_ip_hdr_t);
+  sr_ip_hdr_t* output = malloc(ip_hdr_size); 
+  output->ip_tos = 0; // Best effort
+  output->ip_len = htons(len);
+  output->ip_id = 0; // No ip fragments
+  output->ip_off = 0; // No ip fragments(offset)
+  output->ip_ttl = INIT_TTL;
+  output->ip_p = protocol;
+  output->ip_src = htonl(ip_src);
+  output->ip_dst = htonl(ip_dst);
+
+  uint16_t checksum = cksum(output, ip_hdr_size);
+  output->ip_sum = htons(cksum);
+
+  return create_combined_packet((uint8_t *) output, sizeof(sr_ip_hdr_t), (uint8_t *) data, len);
+}
+
+
+/* TODO: convert host byte to network byte for ethernet packet?? */
+sr_object_t create_ethernet_packet(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, unsigned int len) {
+  unsigned int ethernet_hdr_size = sizeof(sr_ethernet_hdr_t);
+  sr_ethernet_hdr_t* output = malloc(ethernet_hdr_size);
+
+  output->ether_dhost = ether_dhost;
+  output->ether_shost = ether_shost;
+  output->ethertype = ethertype;
+
+  return create_combined_packet((uint8_t *) output, ethernet_hdr_size, (uint8_t *) data, en);
 }
    
 struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP) {
