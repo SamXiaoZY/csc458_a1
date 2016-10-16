@@ -115,7 +115,6 @@ struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targ
     struct sr_rt* output = NULL;
 
     while(currRTEntry){
-
         if(targetIPMatchesEntry(ntohl((uint32_t)currRTEntry->dest.s_addr), (uint32_t)currRTEntry->mask.s_addr, targetIP)==1){
             if((uint32_t)currRTEntry->mask.s_addr > longestMask){
                 longestMask = (uint8_t)currRTEntry->mask.s_addr;
@@ -128,11 +127,12 @@ struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targ
 }
 
 /*returns 1 for true, 0 for false, make sure inputs are in host order*/
+/*check what the mask actually is*/
 int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target) {
     uint32_t testMask = 0xFFFFFFFF;
-    testMask = testMask << (32 - mask);
+    /*testMask = testMask << (32 - mask);*/
 
-    if((entry & testMask) == (target & testMask)){
+    if((entry & mask) == (target & mask)){
         return 1;
     }
     return 0;
