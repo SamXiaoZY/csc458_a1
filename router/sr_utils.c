@@ -4,12 +4,6 @@
 #include "sr_protocol.h"
 #include "sr_utils.h"
 
-/* Sizes in bytes */
-#define ETHERNET_HDR_SIZE 14
-#define IP_HDR_SIZE 20
-#define DATAGRAM_SIZE 8
-
-
 // Creates the checksum of the first len bytes of _data
 uint16_t cksum (const void *_data, int len) {
   const uint8_t *data = _data;
