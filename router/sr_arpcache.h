@@ -162,17 +162,7 @@ void *sr_arpcache_timeout(void *cache_ptr);
 void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr);
 char* get_interface_from_mac(uint8_t *ether_shost, struct sr_instance* sr);
 struct sr_rt* get_Node_From_RoutingTable(struct sr_instance* sr, uint32_t ip);
-struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP);
-int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t dest);
-
 void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply);
-
-sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if);
-
-uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len);
-sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol);
-sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
-                                      uint16_t unused,uint16_t next_mtu,uint8_t* ipHdr, uint8_t len, uint8_t* datagram);
 sr_icmp_hdr_t* createICMPhdr(uint8_t icmp_type, uint8_t icmp_code);
 sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if); 
 
