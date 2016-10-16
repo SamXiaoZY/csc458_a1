@@ -165,7 +165,7 @@ struct sr_rt* get_Node_From_RoutingTable(struct sr_instance* sr, uint32_t ip);
 struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP);
 int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t dest);
 
-void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t ARPReply);
+void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply);
 
 sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if);
 

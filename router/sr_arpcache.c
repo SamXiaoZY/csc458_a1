@@ -219,13 +219,13 @@ sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t I
     return output;
 }
 
-void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t ARPReply){
+void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply){
 
-    unsigned char* replyAddr = &ARPReply.ar_sha;
-    uint32_t replyIP = &ARPReply.ar_sip;
+    unsigned char* replyAddr = ARPReply->ar_sha;
+    uint32_t replyIP = ARPReply->ar_sip;
 
     struct sr_arpreq *arpreq = sr_arpcache_insert(sr->*cache,replyAddr,replyIP);
-    if(!arpreq){
+    if(arpreq){
         struct sr_packet* = arpreq->packets;
         while(packets){
             memcpy(packets->buf, replyAddr, ETHER_ADDR_LEN);
