@@ -33,13 +33,15 @@ int verify_cksum(const void *_data, uint16_t cksum);
 
 uint16_t ethertype(uint8_t *buf);
 uint8_t ip_protocol(uint8_t *buf);
-struct sr_icmp_hdr *create_icmp_header(uint8_t type, uint8_t code);
 
 /*originally from arpcache*/
-uint8_t *createEthernetHdr(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len);
-sr_ip_hdr_t* createIPHdr(uint8_t* data, uint8_t size, uint32_t IPSrc, uint32_t IPDest, uint8_t protocol);
-sr_icmp_t3_hdr_t* createICMPt3hdr(uint8_t icmp_type, uint8_t icmp_code,
-                                      uint16_t unused,uint16_t next_mtu,uint8_t* ipHdr, uint8_t len, uint8_t* datagram);
+sr_object_t create_icmp_header(uint8_t type, uint8_t code);
+sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet);
+sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst, uint8_t* data, unsigned int len);
+sr_object_t create_ethernet_packet(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, unsigned int len);
+
+sr_object_t create_packet(uint8_t *packet, unsigned int len);
+sr_object_t create_combined_packet(uint8_t *hdr, unsigned int hdr_len, uint8_t *data, unsigned int data_len);
 
 struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP);
 int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target);

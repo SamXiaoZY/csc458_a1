@@ -194,21 +194,14 @@ void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct s
   struct sr_ip_hdr* ip_hdr = (sr_ip_hdr_t*) ip_packet;
   /* Return a port unreachable for UDP or TCP type packets through a icmp_t3_header*/
   if (ip_hdr->ip_p == ip_protocol_tcp || ip_hdr->ip_p == ip_protocol_udp) {
-    struct sr_icmp_t3_hdr* icmp_hdr; 
+    sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_3, 0, ip_packet);
 
-      /*= createICMPt3hdr(
-      icmp_type_dest_unreachable, 
-      icmp_code_3,
-      0,
-      0,
-      ip_packet);*/
-
-    createAndSendIPPacket(sr, (sr_ip_hdr_t*)ip_packet, ethernet_hdr->ether_dhost, ethernet_hdr->ether_shost, (uint8_t*) icmp_hdr, sizeof(sr_icmp_t3_hdr_t));
+    createAndSendIPPacket(sr, ip_hdr, ethernet_hdr->ether_dhost, ethernet_hdr->ether_shost, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
   } else if (ip_hdr->ip_p == ip_protocol_icmp && cksum(ip_hdr, ip_hdr->ip_len)) {
     /* If the packet is a valid ICMP echo request, send an echo reply through a icmp_header*/
-    struct sr_icmp_hdr * icmp_hdr  = create_icmp_header(icmp_type_echo_reply, icmp_code_0);
+    sr_object_t icmp_wrapper = create_icmp_header(icmp_type_echo_reply, icmp_code_0);
 
-    createAndSendIPPacket(sr, (sr_ip_hdr_t*)ip_packet, ethernet_hdr->ether_dhost, ethernet_hdr->ether_shost, (uint8_t *)icmp_hdr, sizeof(sr_icmp_hdr_t));
+    createAndSendIPPacket(sr, ip_hdr, ethernet_hdr->ether_dhost, ethernet_hdr->ether_shost, icmp_wrapper.packet, icmp_wrapper.len);
   }
 }
 
@@ -216,18 +209,9 @@ void sr_handle_packet_forward(struct sr_instance *sr, uint8_t *ip_packet, struct
   ip_hdr->ip_ttl -= 1;
   if (ip_hdr->ip_ttl <= 0) {
     /* Send ICMP time exceeded*/
-    uint8_t* datagram = malloc(sizeof(uint8_t));
-    memcpy(datagram, ip_packet+sizeof(sr_ip_hdr_t), DATAGRAM_SIZE);
+    sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_time_exceeded, icmp_code_0, 0, ip_packet);
 
-    sr_icmp_t3_hdr_t* icmp_t3_hdr = createICMPt3hdr(icmp_time_exceeded, 
-        icmp_code_0,
-        0,
-        0,
-        (uint8_t*)ip_hdr,
-        IP_HDR_SIZE,
-        datagram);
-    createAndSendIPPacket(sr, (sr_ip_hdr_t*)ip_packet, ethernet_hdr->ether_dhost, ethernet_hdr->ether_shost, (uint8_t*)icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t));
-
+    createAndSendIPPacket(sr, (sr_ip_hdr_t*)ip_packet, ethernet_hdr->ether_dhost, ethernet_hdr->ether_shost, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
   } else {
     /* Update IP packet checksum */
     ip_hdr->ip_sum = 0;
@@ -240,18 +224,9 @@ void sr_handle_packet_forward(struct sr_instance *sr, uint8_t *ip_packet, struct
 
     /* Send ICMP network unreachable if the ip cannot be identified through our routing table */
     if (longestPrefixIPMatch == NULL) {
-      uint8_t* datagram = malloc(sizeof(uint8_t));
-      memcpy(datagram, ip_packet+sizeof(sr_ip_hdr_t), DATAGRAM_SIZE);
+      sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_0, 0, (sr_ip_hdr_t*)ip_packet);
 
-      struct sr_icmp_t3_hdr* icmp_t3_hdr = createICMPt3hdr(icmp_type_dest_unreachable, 
-        icmp_code_0,
-        0,
-        0,
-        (uint8_t*)ip_hdr,
-        IP_HDR_SIZE,
-        datagram);
-
-      createAndSendICMPPacket(sr, ethernet_hdr, (sr_ip_hdr_t*)ip_packet, (uint8_t *)icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t));
+      createAndSendIPPacket(sr, ethernet_hdr, (sr_ip_hdr_t*)ip_packet, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
     }
     else if (arp_entry != NULL) {
       /* Cache hit for ip_dst, forward the packet*/
@@ -269,20 +244,20 @@ void sr_handle_packet_forward(struct sr_instance *sr, uint8_t *ip_packet, struct
 void createAndSendIPPacket(struct sr_instance* sr, struct sr_ip_hdr* ip_packet, uint8_t* ether_source, uint8_t* ether_dest, uint8_t* ip_payload, uint8_t size) {
 
   /* Create ip packet by wrapping it over the payload*/
-  sr_ip_hdr_t* ip_hdr = createIPHdr(ip_payload, 
-      size, 
-      ip_packet->ip_dst, 
-      ip_packet->ip_src,
-      ip_protocol_icmp);
+  sr_object_t ip_wrapper = create_ip_packet(ip_protocol_icmp,
+      0/*TODO ip_packet->ip_src*/, 
+      0/*TODO ip_packet->ip_dst*/, 
+      ip_payload,
+      size);
 
   /* Create ethernet packet by wrapping it over the ip packet*/
-  uint8_t * eth_hdr = createEthernetHdr(ether_source,
-      ether_dest,
+  sr_object_t eth_wrapper = create_ethernet_packet(0/*ether_source*/,
+      0/*ether_dest*/,
       ethertype_ip,
-      (uint8_t *) ip_hdr,
-      sizeof(struct eth_hdr*) + ip_hdr->ip_len);
+      ip_wrapper.packet,
+      ip_wrapper.len);
 
-  sr_send_packet(sr, eth_hdr, sizeof(eth_hdr), get_interface_from_mac(((sr_ethernet_hdr_t*)eth_hdr)->ether_dhost, sr));
+  sr_send_packet(sr, eth_wrapper.packet, eth_wrapper.len, get_interface_from_mac(((sr_ethernet_hdr_t*)eth_hdr)->ether_dhost, sr));
 
-  /* TODO: Free all memory and perform correct conversion of network <-> local endian type*/
+  free(eth_wrapper.packet);
 }
