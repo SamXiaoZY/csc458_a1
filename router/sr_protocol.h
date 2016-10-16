@@ -141,6 +141,10 @@ struct sr_arp_hdr
 typedef struct sr_arp_hdr sr_arp_hdr_t;
 
 
+/* Sizes in bytes */
+#define ETHERNET_HDR_SIZE 14
+#define IP_HDR_SIZE 20
+#define DATAGRAM_SIZE 8
 
 /* Structure of a ICMP header
  */

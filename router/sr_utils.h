@@ -28,6 +28,12 @@
 #ifndef SR_UTILS_H
 #define SR_UTILS_H
 
+/* Sizes in bytes */
+#define ETHERNET_HDR_SIZE 14
+#define IP_HDR_SIZE 20
+#define DATAGRAM_SIZE 8
+
+
 uint16_t cksum(const void *_data, int len);
 int verify_cksum(const void *_data, uint16_t cksum);
 
