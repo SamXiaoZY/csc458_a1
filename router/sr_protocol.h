@@ -74,7 +74,72 @@
   #define __BYTE_ORDER __BIG_ENDIAN
   #endif
 #endif
+
 #define ICMP_DATA_SIZE 28
+#define ETHER_ADDR_LEN 6
+#define sr_IFACE_NAMELEN 32
+
+
+/* 
+ *  Ethernet packet header prototype.  Too many O/S's define this differently.
+ *  Easy enough to solve that and define it here.
+ */
+struct sr_ethernet_hdr
+{
+#ifndef ETHER_ADDR_LEN
+#define ETHER_ADDR_LEN 6
+#endif
+    uint8_t  ether_dhost[ETHER_ADDR_LEN];    /* destination ethernet address */
+    uint8_t  ether_shost[ETHER_ADDR_LEN];    /* source ethernet address */
+    uint16_t ether_type;                     /* packet type ID */
+} __attribute__ ((packed)) ;
+typedef struct sr_ethernet_hdr sr_ethernet_hdr_t;
+
+
+/*
+ * Structure of an internet header, naked of options.
+ */
+struct sr_ip_hdr
+  {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    unsigned int ip_hl:4;   /* header length */
+    unsigned int ip_v:4;    /* version */
+#elif __BYTE_ORDER == __BIG_ENDIAN
+    unsigned int ip_v:4;    /* version */
+    unsigned int ip_hl:4;   /* header length */
+#else
+#error "Byte ordering ot specified " 
+#endif 
+    uint8_t ip_tos;     /* type of service */
+    uint16_t ip_len;      /* total length */
+    uint16_t ip_id;     /* identification */
+    uint16_t ip_off;      /* fragment offset field */
+#define IP_RF 0x8000      /* reserved fragment flag */
+#define IP_DF 0x4000      /* dont fragment flag */
+#define IP_MF 0x2000      /* more fragments flag */
+#define IP_OFFMASK 0x1fff   /* mask for fragmenting bits */
+    uint8_t ip_ttl;     /* time to live */
+    uint8_t ip_p;     /* protocol */
+    uint16_t ip_sum;      /* checksum */
+    uint32_t ip_src, ip_dst;  /* source and dest address */
+  } __attribute__ ((packed)) ;
+typedef struct sr_ip_hdr sr_ip_hdr_t;
+
+
+struct sr_arp_hdr
+{
+    unsigned short  ar_hrd;             /* format of hardware address   */
+    unsigned short  ar_pro;             /* format of protocol address   */
+    unsigned char   ar_hln;             /* length of hardware address   */
+    unsigned char   ar_pln;             /* length of protocol address   */
+    unsigned short  ar_op;              /* ARP opcode (command)         */
+    unsigned char   ar_sha[ETHER_ADDR_LEN];   /* sender hardware address      */
+    uint32_t        ar_sip;             /* sender IP address            */
+    unsigned char   ar_tha[ETHER_ADDR_LEN];   /* target hardware address      */
+    uint32_t        ar_tip;             /* target IP address            */
+} __attribute__ ((packed)) ;
+typedef struct sr_arp_hdr sr_arp_hdr_t;
+
 
 
 /* Structure of a ICMP header
@@ -100,54 +165,6 @@ struct sr_icmp_t3_hdr {
 
 } __attribute__ ((packed)) ;
 typedef struct sr_icmp_t3_hdr sr_icmp_t3_hdr_t;
-
-
-
-
-/*
- * Structure of an internet header, naked of options.
- */
-struct sr_ip_hdr
-  {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-    unsigned int ip_hl:4;		/* header length */
-    unsigned int ip_v:4;		/* version */
-#elif __BYTE_ORDER == __BIG_ENDIAN
-    unsigned int ip_v:4;		/* version */
-    unsigned int ip_hl:4;		/* header length */
-#else
-#error "Byte ordering ot specified " 
-#endif 
-    uint8_t ip_tos;			/* type of service */
-    uint16_t ip_len;			/* total length */
-    uint16_t ip_id;			/* identification */
-    uint16_t ip_off;			/* fragment offset field */
-#define	IP_RF 0x8000			/* reserved fragment flag */
-#define	IP_DF 0x4000			/* dont fragment flag */
-#define	IP_MF 0x2000			/* more fragments flag */
-#define	IP_OFFMASK 0x1fff		/* mask for fragmenting bits */
-    uint8_t ip_ttl;			/* time to live */
-    uint8_t ip_p;			/* protocol */
-    uint16_t ip_sum;			/* checksum */
-    uint32_t ip_src, ip_dst;	/* source and dest address */
-  } __attribute__ ((packed)) ;
-typedef struct sr_ip_hdr sr_ip_hdr_t;
-
-/* 
- *  Ethernet packet header prototype.  Too many O/S's define this differently.
- *  Easy enough to solve that and define it here.
- */
-struct sr_ethernet_hdr
-{
-#ifndef ETHER_ADDR_LEN
-#define ETHER_ADDR_LEN 6
-#endif
-    uint8_t  ether_dhost[ETHER_ADDR_LEN];    /* destination ethernet address */
-    uint8_t  ether_shost[ETHER_ADDR_LEN];    /* source ethernet address */
-    uint16_t ether_type;                     /* packet type ID */
-} __attribute__ ((packed)) ;
-typedef struct sr_ethernet_hdr sr_ethernet_hdr_t;
-
 
 
 enum sr_ip_protocol {
@@ -184,20 +201,28 @@ enum sr_arp_hrd_fmt {
 };
 
 
-struct sr_arp_hdr
+struct sr_object
 {
-    unsigned short  ar_hrd;             /* format of hardware address   */
-    unsigned short  ar_pro;             /* format of protocol address   */
-    unsigned char   ar_hln;             /* length of hardware address   */
-    unsigned char   ar_pln;             /* length of protocol address   */
-    unsigned short  ar_op;              /* ARP opcode (command)         */
-    unsigned char   ar_sha[ETHER_ADDR_LEN];   /* sender hardware address      */
-    uint32_t        ar_sip;             /* sender IP address            */
-    unsigned char   ar_tha[ETHER_ADDR_LEN];   /* target hardware address      */
-    uint32_t        ar_tip;             /* target IP address            */
+  uint8_t *object;
+  int len;
 } __attribute__ ((packed)) ;
-typedef struct sr_arp_hdr sr_arp_hdr_t;
+typedef struct sr_object sr_object_t;
 
-#define sr_IFACE_NAMELEN 32
+
+/*struct sr_ip_hdr_w
+{
+  struct sr_ethernet_hdr;
+  int len;
+} __attribute__ ((packed)) ;
+typedef struct sr_ethernet_hdr_w sr_ethernet_hdr_w_t;
+
+
+struct sr_ethernet_hdr_w
+{
+  struct sr_ethernet_hdr;
+  int len;
+} __attribute__ ((packed)) ;
+typedef struct sr_ethernet_hdr_w sr_ethernet_hdr_w_t;*/
+
 
 #endif /* -- SR_PROTOCOL_H -- */
