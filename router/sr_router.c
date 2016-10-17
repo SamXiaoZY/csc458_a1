@@ -92,9 +92,10 @@ void sr_handlepacket(struct sr_instance* sr,
     /* If ARP request, reply with our mac address*/
     if (arp_hdr->ar_op == arp_op_request) {
       sr_handle_arp_request(sr, ethernet_hdr, arp_hdr, self_interface);
-    } else if (arp_hdr->ar_op == arp_op_request) {
+    } else if (arp_hdr->ar_op != arp_op_request){
       /* If ARP response, remove the ARP request from the queue, update cache, forward any packets that were waiting on that ARP request
       all Gorden's function*/
+      receviedARPReply(sr, arp_hdr, interface);
     }
 
     free(arp_hdr);

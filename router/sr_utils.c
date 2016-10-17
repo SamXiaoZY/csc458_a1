@@ -50,11 +50,11 @@ sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t
   struct sr_icmp_t3_hdr* icmp_t3_hdr = malloc(icmp_hdr_size);
   icmp_t3_hdr->icmp_type = icmp_type;
   icmp_t3_hdr->icmp_code = icmp_code;
-  icmp_t3_hdr->next_mtu = htons(next_mtu);
+  icmp_t3_hdr->next_mtu = next_mtu;
 
   memcpy(icmp_t3_hdr->data, ip_packet, ICMP_DATA_SIZE);
   icmp_t3_hdr->icmp_sum = htons(cksum(icmp_t3_hdr, icmp_hdr_size - ICMP_DATA_SIZE));
-
+  icmp_t3_hdr->next_mtu = htons(next_mtu);
   return create_packet((uint8_t *)icmp_t3_hdr, icmp_hdr_size);
 }
 
@@ -66,16 +66,19 @@ sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst
   output->ip_v = 4;
   output->ip_hl = 5;
   output->ip_tos = 0; /* Best effort*/
-  output->ip_len = htons(len);
+  output->ip_len = len;
   output->ip_id = 0; /* No ip fragments */
   output->ip_off = 0; /* No ip fragments(offset) */
   output->ip_ttl = INIT_TTL;
   output->ip_p = protocol;
-  output->ip_src = htonl(ip_src);
-  output->ip_dst = htonl(ip_dst);
+  output->ip_src = ip_src; 
+  output->ip_dst = ip_dst; 
 
   uint16_t checksum = cksum(output, ip_hdr_size);
   output->ip_sum = htons(checksum);
+  output->ip_len = htons(len);
+  output->ip_src = htonl(ip_src); 
+  output->ip_dst = htonl(ip_dst);
 
   return create_combined_packet((uint8_t *) output, sizeof(sr_ip_hdr_t), (uint8_t *) data, len);
 }
