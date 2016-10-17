@@ -165,7 +165,6 @@ void transform_network_to_hardware_icmp_t3_header (sr_icmp_t3_hdr_t* icmp_t3_hdr
   icmp_t3_hdr->icmp_sum = ntohs(icmp_t3_hdr->icmp_sum);
   icmp_t3_hdr->unused = ntohs(icmp_t3_hdr->unused);
   icmp_t3_hdr->next_mtu = ntohs(icmp_t3_hdr->next_mtu);
-  /* TODO: Should we convert data? uint8_t data[28]; */
 }
 
 void transform_network_to_hardware_arp_header (sr_arp_hdr_t* arp_hdr) {
@@ -178,11 +177,33 @@ void transform_network_to_hardware_arp_header (sr_arp_hdr_t* arp_hdr) {
     /* arp_hdr->ar_tha;      TODO: same as above */
 }
 
-void transform_hardware_to_network_ethernet_header(sr_ethernet_hdr_t* eth_hdr) {}
-void transform_hardware_to_network_ip_header(sr_ip_hdr_t* ip_hdr) {}
-void transform_hardware_to_network_icmp_header (sr_icmp_hdr_t* icmp_hdr) {}
-void transform_hardware_to_network_icmp_t3_header (sr_icmp_t3_hdr_t* icmp_t3_hdr) {}
-void transform_hardware_to_network_arp_header (sr_arp_hdr_t* arp_hdr) {}
+void transform_hardware_to_network_ethernet_header(sr_ethernet_hdr_t* eth_hdr) {
+  /* eth_hdr->ether_dhost = ntohl(eth_hdr->ether_dhost);    TODO: Fix 1*6 bytes != 4 bytes */
+  /* eth_hdr->ether_shost = ntohl(eth_hdr->ether_shost);    TODO: Fix 1*6 bytes != 4 bytes */
+  eth_hdr->ether_type = htons(eth_hdr->ether_type);
+}
+void transform_hardware_to_network_ip_header(sr_ip_hdr_t* ip_hdr) {
+  ip_hdr->ip_len = htons(ip_hdr->ip_len);
+  ip_hdr->ip_id = htons(ip_hdr->ip_id);
+  ip_hdr->ip_off = htons(ip_hdr->ip_off);
+  ip_hdr->ip_src = htonl(ip_hdr->ip_src);
+  ip_hdr->ip_dst = htonl(ip_hdr->ip_dst);
+}
+
+void transform_hardware_to_network_icmp_t3_header (sr_icmp_t3_hdr_t* icmp_t3_hdr) {
+  icmp_t3_hdr->unused = htons(icmp_t3_hdr->unused);
+  icmp_t3_hdr->next_mtu = htons(icmp_t3_hdr->next_mtu);
+}
+
+void transform_hardware_to_network_arp_header (sr_arp_hdr_t* arp_hdr) {
+  arp_hdr->ar_hrd = htonl(arp_hdr->ar_hrd);
+  arp_hdr->ar_pro = htonl(arp_hdr->ar_pro);
+  arp_hdr->ar_op = htonl(arp_hdr->ar_op);
+  arp_hdr->ar_sip = htonl(arp_hdr->ar_sip);
+  arp_hdr->ar_tip = htonl(arp_hdr->ar_tip);
+  /* arp_hdr->ar_sha;      TODO: Convert unsigned char   ar_sha[ETHER_ADDR_LEN] */
+  /* arp_hdr->ar_tha;      TODO: same as above */
+}
 
 /* Prints out formatted Ethernet address, e.g. 00:11:22:33:44:55 */
 void print_addr_eth(uint8_t *addr) {
