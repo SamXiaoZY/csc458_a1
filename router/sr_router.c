@@ -186,7 +186,7 @@ void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct s
 
 
 void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *ethernet_hdr, uint8_t *ip_packet, unsigned int ip_packet_len) {
-  sr_ip_hdr_t ip_hdr = (sr_ip_hdr_t *) ip_packet;
+  sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *) ip_packet;
 
   /* Initialize packet src/dest with 'reply' type values*/
   uint32_t ip_src = ip_hdr->ip_dst;
@@ -240,7 +240,7 @@ void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_shost
                 ethernet_packet.len, 
                 get_interface_from_mac(((sr_ethernet_hdr_t *) ethernet_packet.packet)->ether_dhost, sr));
 
-  free(eth_wrapper.packet);
+  free(ethernet_packet.packet);
 }
 
 

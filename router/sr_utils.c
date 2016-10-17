@@ -89,29 +89,6 @@ sr_object_t create_ip_packet(uint8_t protocol, uint32_t ip_src, uint32_t ip_dst,
   return create_combined_packet((uint8_t *) output, sizeof(sr_ip_hdr_t), (uint8_t *) data, len);
 }
 
-sr_object_t create_forward_ip_packet(uint8_t *received_ip_packet, ) {
-
-  unsigned int ip_hdr_size = sizeof(sr_ip_hdr_t);
-  sr_ip_hdr_t* output = malloc(ip_hdr_size); 
-  output->ip_v = 4;
-  output->ip_hl = 5;
-  output->ip_tos = 0; /* Best effort*/
-  output->ip_len = len;
-  output->ip_id = 0; /* No ip fragments */
-  output->ip_off = 0; /* No ip fragments(offset) */
-  output->ip_ttl = INIT_TTL;
-  output->ip_p = protocol;
-  output->ip_src = ip_src; 
-  output->ip_dst = ip_dst; 
-
-  uint16_t checksum = cksum(output, ip_hdr_size);
-  output->ip_sum = checksum;
-
-  transform_hardware_to_network_ip_header(output);
-
-  return create_combined_packet((uint8_t *) output, sizeof(sr_ip_hdr_t), (uint8_t *) data, len);
-}
-
 sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, unsigned int len) {
   unsigned int ethernet_hdr_size = sizeof(sr_ethernet_hdr_t);
   sr_ethernet_hdr_t* output = malloc(ethernet_hdr_size);
