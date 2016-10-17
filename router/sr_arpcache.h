@@ -164,7 +164,7 @@ char* get_interface_from_mac(uint8_t *ether_shost, struct sr_instance* sr);
 struct sr_rt* get_Node_From_RoutingTable(struct sr_instance* sr, uint32_t ip);
 void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply);
 sr_icmp_hdr_t* createICMPhdr(uint8_t icmp_type, uint8_t icmp_code);
-sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if); 
+sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if, uint8_t* target_mac); 
 
 
 
