@@ -111,8 +111,7 @@ void sr_handlepacket(struct sr_instance* sr,
           sr_handle_packet_reply(sr, ip_packet, ethernet_hdr);
         } 
         else {
-          /*TODO*/
-          /*sr_handle_packet_forward(sr, (sr_ip_hdr_t*)ip_packet, ethernet_hdr, ip_packet_len);*/
+          sr_handle_packet_forward(sr, ethernet_hdr, ip_packet, ip_packet_len);
         }
     }
     /* Check if we are recipient of the packet*/
@@ -121,27 +120,6 @@ void sr_handlepacket(struct sr_instance* sr,
   free(ethernet_hdr);
 }/* end sr_handlepacket */
 
-
-/* Copy the header from the Ethernet packet*/
-sr_ethernet_hdr_t *sr_copy_ethernet_hdr(uint8_t *ethernet_packet) {
-  struct sr_ethernet_hdr* ethernet_hdr  = malloc(sizeof(struct sr_ethernet_hdr));
-  memcpy(ethernet_hdr, ethernet_packet, ETHERNET_HDR_SIZE);
-  return ethernet_hdr;
-}
-
-/* Copy the header from the ARP packet*/
-struct sr_arp_hdr *sr_copy_arp_hdr(uint8_t *ethernet_packet) {
-  struct sr_arp_hdr* arp_hdr  = malloc(sizeof(struct sr_arp_hdr));
-  memcpy(arp_hdr, ethernet_packet+ETHERNET_HDR_SIZE, sizeof(sr_arp_hdr_t));
-  return arp_hdr;
-}
-
-/* Copy the IP packet from the Ethernet packet*/
-uint8_t *sr_copy_ip_packet(uint8_t *ethernet_packet, unsigned int ip_packet_len) {
-  uint8_t *ip_packet = malloc(ip_packet_len);
-  memcpy(ip_packet, ethernet_packet + ETHERNET_HDR_SIZE, ip_packet_len);
-  return ip_packet;
-}
 
 /* Determine if the router contains the intended recipient of the ip packet*/
 int sr_is_packet_recipient(struct sr_instance *sr, uint32_t ip) {
@@ -206,13 +184,17 @@ void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct s
   }
 }
 
-void sr_handle_packet_forward(struct sr_instance *sr, uint8_t *ip_packet, struct sr_ip_hdr *ip_hdr, unsigned int ip_packet_len, struct sr_ethernet_hdr *ethernet_hdr) {
+
+void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *ethernet_hdr, uint8_t *ip_packet, unsigned int ip_packet_len) {
+  sr_ip_hdr_t ip_hdr = (sr_ip_hdr_t *) ip_packet;
+
   /* Initialize packet src/dest with 'reply' type values*/
   uint32_t ip_src = ip_hdr->ip_dst;
   uint32_t ip_dest = ip_hdr->ip_src;
   uint8_t* eth_src = ethernet_hdr->ether_dhost;
   uint8_t* eth_dest = ethernet_hdr->ether_shost;
   unsigned int ip_hdr_size = sizeof(sr_ip_hdr_t);
+
   ip_hdr->ip_ttl -= 1;
 
   if (ip_hdr->ip_ttl <= 0) {
@@ -234,48 +216,42 @@ void sr_handle_packet_forward(struct sr_instance *sr, uint8_t *ip_packet, struct
       sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_0, 0, ip_packet);
 
       createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
-    } else if (arp_entry != NULL) {
-      /* When forwarding to next-hop, only mac addresses change*/
-      struct sr_if* outgoing_interface = sr_get_interface(sr, longestPrefixIPMatch->interface);
-      ip_src = ip_hdr->ip_src;
-      ip_dest = ip_hdr->ip_dst;
-      eth_src = outgoing_interface->addr;
-      eth_dest = arp_entry->mac;
-
-      createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, ip_packet + ip_hdr_size, ip_packet_len - ip_hdr_size);
-      /* create copy of packet and send it*/
-    } else {
+    } else if (arp_entry == NULL) {
       /* Entry for ip_dst missing in cache table, queue the packet*/
       char* iface = get_interface_from_mac(ethernet_hdr->ether_shost, sr);
       sr_arpcache_queuereq(&(sr->cache), ip_hdr->ip_dst, ip_packet, ip_packet_len, iface);
+    } else {
+      /* When forwarding to next-hop, only mac addresses change*/
+      struct sr_if* outgoing_interface = sr_get_interface(sr, longestPrefixIPMatch->interface);
+      eth_src = outgoing_interface->addr;
+      eth_dest = arp_entry->mac;
+
+      sr_create_send_ethernet_packet(sr, eth_src, eth_dest, ethertype_ip, ip_packet, ip_packet_len - ip_hdr_size);
     }
     free(arp_entry);
   }
 }
 
 
-/* Create an Ethernet packet and send it*/
-void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, uint16_t len) {
+/* Create an Ethernet packet and send it, len = size of data in bytes*/
+void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, uint16_t len) {
   sr_object_t ethernet_packet = create_ethernet_packet(ether_dhost, ether_shost, ethertype, data, len);
   sr_send_packet(sr, ethernet_packet.packet, 
                 ethernet_packet.len, 
                 get_interface_from_mac(((sr_ethernet_hdr_t *) ethernet_packet.packet)->ether_dhost, sr));
-}
 
-
-void sr_create_forward_ip_packet(struct sr_instance* sr, uint8_t* ip_packet) {
-  
+  free(eth_wrapper.packet);
 }
 
 
 /* Should pass in correct ip*/
-void createAndSendIPPacket(struct sr_instance* sr, uint32_t ip_src, uint32_t ip_dest, uint8_t* eth_src, uint8_t* eth_dest, uint8_t* ip_payload, uint8_t size) {
+void createAndSendIPPacket(struct sr_instance* sr, uint32_t ip_src, uint32_t ip_dest, uint8_t* eth_src, uint8_t* eth_dest, uint8_t* ip_payload, uint8_t len) {
   /* Create ip packet by wrapping it over the payload*/
   sr_object_t ip_wrapper = create_ip_packet(ip_protocol_icmp,
       ip_src,
       ip_dest,
       ip_payload,
-      size);
+      len);
 
   /* Create ethernet packet by wrapping it over the ip packet*/
   sr_object_t eth_wrapper = create_ethernet_packet(eth_src,
@@ -287,4 +263,32 @@ void createAndSendIPPacket(struct sr_instance* sr, uint32_t ip_src, uint32_t ip_
   sr_send_packet(sr, eth_wrapper.packet, eth_wrapper.len, get_interface_from_mac(eth_src, sr));
 
   free(eth_wrapper.packet);
+}
+
+
+/* TODO: Conver from network to hardwarr byte order*/
+/* Copy the header from the Ethernet packet*/
+sr_ethernet_hdr_t *sr_copy_ethernet_hdr(uint8_t *ethernet_packet) {
+  struct sr_ethernet_hdr* ethernet_hdr  = malloc(sizeof(struct sr_ethernet_hdr));
+  memcpy(ethernet_hdr, ethernet_packet, ETHERNET_HDR_SIZE);
+  transform_network_to_hardware_ethernet_header(ethernet_hdr);
+  return ethernet_hdr;
+}
+
+
+/* Copy the header from the ARP packet*/
+sr_arp_hdr_t *sr_copy_arp_hdr(uint8_t *ethernet_packet) {
+  struct sr_arp_hdr* arp_hdr  = malloc(sizeof(struct sr_arp_hdr));
+  memcpy(arp_hdr, ethernet_packet + ETHERNET_HDR_SIZE, sizeof(sr_arp_hdr_t));
+  transform_network_to_hardware_arp_header(arp_hdr);
+  return arp_hdr;
+}
+
+
+/* Copy the IP packet from the Ethernet packet*/
+uint8_t *sr_copy_ip_packet(uint8_t *ethernet_packet, unsigned int ip_packet_len) {
+  uint8_t *ip_packet = malloc(ip_packet_len);
+  memcpy(ip_packet, ethernet_packet + ETHERNET_HDR_SIZE, ip_packet_len);
+  transform_network_to_hardware_ip_header((sr_ip_hdr_t *)ip_packet);
+  return ip_packet;
 }
