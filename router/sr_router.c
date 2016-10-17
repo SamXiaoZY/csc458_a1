@@ -262,6 +262,12 @@ void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_dhost
                 get_interface_from_mac(((sr_ethernet_hdr_t *) ethernet_packet.packet)->ether_dhost, sr));
 }
 
+
+void sr_create_forward_ip_packet(struct sr_instance* sr, uint8_t* ip_packet) {
+  
+}
+
+
 /* Should pass in correct ip*/
 void createAndSendIPPacket(struct sr_instance* sr, uint32_t ip_src, uint32_t ip_dest, uint8_t* eth_src, uint8_t* eth_dest, uint8_t* ip_payload, uint8_t size) {
   /* Create ip packet by wrapping it over the payload*/
