@@ -190,8 +190,12 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply){
         struct sr_packet* = arpreq->packets;
         while(packets){
             memcpy(packets->buf, replyAddr, ETHER_ADDR_LEN);
-            char* interface = get_interface_from_mac(replyAddr, sr);
-            sr_send_packet(sr , packets->buf , packets->len, interface);
+
+            /*edit packet ethernet source add*/
+
+            struct sr_rt* targetRT = getInterfaceLongestMatch(sr->routing_table, replyIP);
+            struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
+            sr_send_packet(sr , packets->buf , packets->len, targetInterface->name);
             packets = packets.next;
         }
     }
