@@ -38,7 +38,7 @@ uint8_t ip_protocol(uint8_t *buf);
 sr_object_t create_icmp_header(uint8_t type, uint8_t code);
 sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet);
 sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst, uint8_t* data, unsigned int len);
-sr_object_t create_ethernet_packet(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, unsigned int len);
+sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, unsigned int len);
 
 sr_object_t create_packet(uint8_t *packet, unsigned int len);
 sr_object_t create_combined_packet(uint8_t *hdr, unsigned int hdr_len, uint8_t *data, unsigned int data_len);

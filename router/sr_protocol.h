@@ -213,20 +213,4 @@ struct sr_object
 typedef struct sr_object sr_object_t;
 
 
-/*struct sr_ip_hdr_w
-{
-  struct sr_ethernet_hdr;
-  int len;
-} __attribute__ ((packed)) ;
-typedef struct sr_ethernet_hdr_w sr_ethernet_hdr_w_t;
-
-
-struct sr_ethernet_hdr_w
-{
-  struct sr_ethernet_hdr;
-  int len;
-} __attribute__ ((packed)) ;
-typedef struct sr_ethernet_hdr_w sr_ethernet_hdr_w_t;*/
-
-
 #endif /* -- SR_PROTOCOL_H -- */

@@ -61,6 +61,8 @@ sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst
 
   unsigned int ip_hdr_size = sizeof(sr_ip_hdr_t);
   sr_ip_hdr_t* output = malloc(ip_hdr_size); 
+  output->ip_v = 4;
+  output->ip_hl = 5;
   output->ip_tos = 0; // Best effort
   output->ip_len = htons(len);
   output->ip_id = 0; // No ip fragments
@@ -78,7 +80,7 @@ sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst
 
 
 /* TODO: convert host byte to network byte for ethernet packet?? */
-sr_object_t create_ethernet_packet(uint8_t* ether_dhost, uint8_t* ether_shost, uint16_t ethertype, uint8_t *data, unsigned int len) {
+sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, unsigned int len) {
   unsigned int ethernet_hdr_size = sizeof(sr_ethernet_hdr_t);
   sr_ethernet_hdr_t* output = malloc(ethernet_hdr_size);
 
@@ -289,3 +291,5 @@ void print_hdrs(uint8_t *buf, uint32_t length) {
     fprintf(stderr, "Unrecognized Ethernet Type: %d\n", ethtype);
   }
 }
+
+/* TODO: Hardware to network conversion and network to hardware covertion for each packet type, except for checksum */
