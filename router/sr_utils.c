@@ -42,6 +42,9 @@ sr_object_t create_icmp_header(uint8_t type, uint8_t code) {
   icmp_header->icmp_type = type;
   icmp_header->icmp_code = code;
   icmp_header->icmp_sum = cksum((void*)icmp_header, sizeof(struct sr_icmp_hdr));
+
+  transform_network_to_hardware_icmp_header(icmp_header);
+
   return create_packet((uint8_t*)icmp_header, icmp_hdr_size);
 }
 
@@ -56,6 +59,9 @@ sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t
   /* Copy over ip header and 8bytes of datagram as per ICMP type 3/11 definition */
   memcpy(icmp_t3_hdr->data, ip_packet, ICMP_DATA_SIZE);
   icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, icmp_hdr_size - ICMP_DATA_SIZE);
+
+  transform_network_to_hardware_icmp_t3_header(icmp_t3_hdr);
+
   return create_packet((uint8_t *)icmp_t3_hdr, icmp_hdr_size);
 }
 
@@ -76,6 +82,9 @@ sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst
   output->ip_dst = ip_dst; 
 
   uint16_t checksum = cksum(output, ip_hdr_size);
+  output->ip_sum = checksum;
+
+  transform_hardware_to_network_ip_header(output);
 
   return create_combined_packet((uint8_t *) output, sizeof(sr_ip_hdr_t), (uint8_t *) data, len);
 }
@@ -87,6 +96,8 @@ sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, u
   memcpy(output->ether_dhost, ether_dhost, ETHER_ADDR_LEN);
   memcpy(output->ether_shost, ether_shost, ETHER_ADDR_LEN);
   output->ether_type = ethertype;
+
+  transform_network_to_hardware_ethernet_header(output);
 
   return create_combined_packet((uint8_t *) output, ethernet_hdr_size, (uint8_t *) data, len);
 }
@@ -130,7 +141,7 @@ struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targ
 /*returns 1 for true, 0 for false, make sure inputs are in host order*/
 /*check what the mask actually is*/
 int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target) {
-    uint32_t testMask = 0xFFFFFFFF;
+    /* uint32_t testMask = 0xFFFFFFFF; */
     /*testMask = testMask << (32 - mask);*/
 
     if((entry & mask) == (target & mask)) {
@@ -171,7 +182,7 @@ void transform_network_to_hardware_arp_header(sr_arp_hdr_t* arp_hdr) {
   arp_hdr->ar_op = ntohl(arp_hdr->ar_op);
   arp_hdr->ar_sip = ntohl(arp_hdr->ar_sip);
   arp_hdr->ar_tip = ntohl(arp_hdr->ar_tip);
-  swap_mac(arp_hdr->ar_sha):
+  swap_mac(arp_hdr->ar_sha);
   swap_mac(arp_hdr->ar_tha);
 }
 
@@ -199,7 +210,7 @@ void transform_hardware_to_network_arp_header(sr_arp_hdr_t* arp_hdr) {
   arp_hdr->ar_op = htonl(arp_hdr->ar_op);
   arp_hdr->ar_sip = htonl(arp_hdr->ar_sip);
   arp_hdr->ar_tip = htonl(arp_hdr->ar_tip);
-  swap_mac(arp_hdr->ar_sha):
+  swap_mac(arp_hdr->ar_sha);
   swap_mac(arp_hdr->ar_tha);
 }
 

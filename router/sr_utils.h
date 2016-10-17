@@ -41,6 +41,7 @@ sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, u
 
 sr_object_t create_packet(uint8_t *packet, unsigned int len);
 sr_object_t create_combined_packet(uint8_t *hdr, unsigned int hdr_len, uint8_t *data, unsigned int data_len);
+void swap_mac(uint8_t *mac);
 
 struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP);
 int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target);
