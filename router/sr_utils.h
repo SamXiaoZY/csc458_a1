@@ -45,6 +45,18 @@ sr_object_t create_combined_packet(uint8_t *hdr, unsigned int hdr_len, uint8_t *
 struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP);
 int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target);
 
+void transform_network_to_hardware_ethernet_header(sr_ethernet_hdr_t* eth_hdr);
+void transform_network_to_hardware_ip_header(sr_ip_hdr_t* ip_hdr);
+void transform_network_to_hardware_icmp_header (sr_icmp_hdr_t* icmp_hdr);
+void transform_network_to_hardware_icmp_t3_header (sr_icmp_t3_hdr_t* icmp_t3_hdr);
+void transform_network_to_hardware_arp_header (sr_arp_hdr_t* arp_hdr);
+
+void transform_hardware_to_network_ethernet_header(sr_ethernet_hdr_t* eth_hdr);
+void transform_hardware_to_network_ip_header(sr_ip_hdr_t* ip_hdr);
+void transform_hardware_to_network_icmp_header (sr_icmp_hdr_t* icmp_hdr);
+void transform_hardware_to_network_icmp_t3_header (sr_icmp_t3_hdr_t* icmp_t3_hdr);
+void transform_hardware_to_network_arp_header (sr_arp_hdr_t* arp_hdr);
+
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);
 void print_addr_ip_int(uint32_t ip);
