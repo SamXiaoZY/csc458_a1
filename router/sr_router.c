@@ -223,7 +223,7 @@ void sr_handle_packet_forward(struct sr_instance *sr, uint8_t *ip_packet, struct
   } else {
     /* Update IP packet checksum */
     ip_hdr->ip_sum = 0;
-    ip_hdr->ip_sum = htonl(cksum(ip_packet, ip_hdr_size));
+    ip_hdr->ip_sum = cksum(ip_packet, ip_hdr_size);
 
     /* Get the MAC address of next hub*/
     struct sr_rt* longestPrefixIPMatch = getInterfaceLongestMatch(sr->routing_table,ip_hdr->ip_dst);

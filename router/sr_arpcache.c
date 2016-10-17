@@ -75,7 +75,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 memcpy(IPPacketWithDatagram, currIPHdr, IP_HDR_SIZE);                
                 memcpy(IPPacketWithDatagram+IP_HDR_SIZE, datagram, DATAGRAM_SIZE);
 
-                uint32_t icmp_destination = ntohl(currIPHdr->ip_src);
+                uint32_t icmp_destination = currIPHdr->ip_src;
 
                 struct sr_rt* targetRT = getInterfaceLongestMatch(sr->routing_table, icmp_destination);
                 struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);

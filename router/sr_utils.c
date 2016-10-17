@@ -41,20 +41,21 @@ sr_object_t create_icmp_header(uint8_t type, uint8_t code) {
   struct sr_icmp_hdr* icmp_header = malloc(icmp_hdr_size);
   icmp_header->icmp_type = type;
   icmp_header->icmp_code = code;
-  icmp_header->icmp_sum = htons(cksum((void*)icmp_header, sizeof(struct sr_icmp_hdr)));
+  icmp_header->icmp_sum = cksum((void*)icmp_header, sizeof(struct sr_icmp_hdr));
   return create_packet((uint8_t*)icmp_header, icmp_hdr_size);
 }
 
 sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet) {
+  /* Create ICMP type 3 header */
   unsigned int icmp_hdr_size = sizeof(sr_icmp_t3_hdr_t);
   struct sr_icmp_t3_hdr* icmp_t3_hdr = malloc(icmp_hdr_size);
   icmp_t3_hdr->icmp_type = icmp_type;
   icmp_t3_hdr->icmp_code = icmp_code;
   icmp_t3_hdr->next_mtu = next_mtu;
 
+  /* Copy over ip header and 8bytes of datagram as per ICMP type 3/11 definition */
   memcpy(icmp_t3_hdr->data, ip_packet, ICMP_DATA_SIZE);
-  icmp_t3_hdr->icmp_sum = htons(cksum(icmp_t3_hdr, icmp_hdr_size - ICMP_DATA_SIZE));
-  icmp_t3_hdr->next_mtu = htons(next_mtu);
+  icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, icmp_hdr_size - ICMP_DATA_SIZE);
   return create_packet((uint8_t *)icmp_t3_hdr, icmp_hdr_size);
 }
 
@@ -75,10 +76,6 @@ sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst
   output->ip_dst = ip_dst; 
 
   uint16_t checksum = cksum(output, ip_hdr_size);
-  output->ip_sum = htons(checksum);
-  output->ip_len = htons(len);
-  output->ip_src = htonl(ip_src); 
-  output->ip_dst = htonl(ip_dst);
 
   return create_combined_packet((uint8_t *) output, sizeof(sr_ip_hdr_t), (uint8_t *) data, len);
 }
@@ -118,9 +115,9 @@ struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targ
     uint32_t longestMask = 0;
     struct sr_rt* output = NULL;
 
-    while(currRTEntry){
-        if(targetIPMatchesEntry(currRTEntry->dest.s_addr, currRTEntry->mask.s_addr, targetIP)==1){
-            if((uint32_t)currRTEntry->mask.s_addr > longestMask){
+    while(currRTEntry) {
+        if(targetIPMatchesEntry(currRTEntry->dest.s_addr, currRTEntry->mask.s_addr, targetIP) == 1){
+            if((uint32_t)currRTEntry->mask.s_addr > longestMask) {
                 longestMask = (uint8_t)currRTEntry->mask.s_addr;
                 output = currRTEntry;
             }
@@ -136,7 +133,7 @@ int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target) {
     uint32_t testMask = 0xFFFFFFFF;
     /*testMask = testMask << (32 - mask);*/
 
-    if((ntohl(entry) & mask) == (target & mask)){
+    if((entry & mask) == (target & mask)) {
         return 1;
     }
     return 0;
@@ -168,13 +165,13 @@ void transform_network_to_hardware_icmp_t3_header (sr_icmp_t3_hdr_t* icmp_t3_hdr
 }
 
 void transform_network_to_hardware_arp_header (sr_arp_hdr_t* arp_hdr) {
-    arp_hdr->ar_hrd = ntohl(arp_hdr->ar_hrd);
-    arp_hdr->ar_pro = ntohl(arp_hdr->ar_pro);
-    arp_hdr->ar_op = ntohl(arp_hdr->ar_op);
-    arp_hdr->ar_sip = ntohl(arp_hdr->ar_sip);
-    arp_hdr->ar_tip = ntohl(arp_hdr->ar_tip);
-    /* arp_hdr->ar_sha;      TODO: Convert unsigned char   ar_sha[ETHER_ADDR_LEN] */
-    /* arp_hdr->ar_tha;      TODO: same as above */
+  arp_hdr->ar_hrd = ntohl(arp_hdr->ar_hrd);
+  arp_hdr->ar_pro = ntohl(arp_hdr->ar_pro);
+  arp_hdr->ar_op = ntohl(arp_hdr->ar_op);
+  arp_hdr->ar_sip = ntohl(arp_hdr->ar_sip);
+  arp_hdr->ar_tip = ntohl(arp_hdr->ar_tip);
+  /* arp_hdr->ar_sha;      TODO: Convert unsigned char   ar_sha[ETHER_ADDR_LEN] */
+  /* arp_hdr->ar_tha;      TODO: same as above */
 }
 
 void transform_hardware_to_network_ethernet_header(sr_ethernet_hdr_t* eth_hdr) {
