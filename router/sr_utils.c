@@ -1,10 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <netinet/in.h>
 #include "sr_protocol.h"
 #include "sr_utils.h"
+#include "sr_rt.h"
 
-// Creates the checksum of the first len bytes of _data
+/* Creates the checksum of the first len bytes of _data*/
 uint16_t cksum (const void *_data, int len) {
   const uint8_t *data = _data;
   uint32_t sum;
@@ -19,9 +21,9 @@ uint16_t cksum (const void *_data, int len) {
   return sum ? sum : 0xffff;
 }
 
-int verify_cksum (const void *_data, int len, uint16_t cksum) {
-  // Get the complement of the recomputed checksum to get the sum of all 16
-  return ~cksum(_data, len) + cksum == 0;
+int verify_cksum (const void *_data, int len, uint16_t val) {
+  /* Get the complement of the recomputed checksum to get the sum of all 16*/
+  return (~cksum(_data, len) + val) == 0;
 }
 
 uint16_t ethertype(uint8_t *buf) {
@@ -39,8 +41,8 @@ sr_object_t create_icmp_header(uint8_t type, uint8_t code) {
   struct sr_icmp_hdr* icmp_header = malloc(icmp_hdr_size);
   icmp_header->icmp_type = type;
   icmp_header->icmp_code = code;
-  icmp_header->icmp_sum = htons(cksum((void*)sr_icmp_hdr, sizeof(struct sr_icmp_hdr)));
-  return create_packet(icmp_header, icmp_hdr_size);
+  icmp_header->icmp_sum = htons(cksum((void*)icmp_header, sizeof(struct sr_icmp_hdr)));
+  return create_packet((uint8_t*)icmp_header, icmp_hdr_size);
 }
 
 sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet) {
@@ -63,17 +65,17 @@ sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst
   sr_ip_hdr_t* output = malloc(ip_hdr_size); 
   output->ip_v = 4;
   output->ip_hl = 5;
-  output->ip_tos = 0; // Best effort
+  output->ip_tos = 0; /* Best effort*/
   output->ip_len = htons(len);
-  output->ip_id = 0; // No ip fragments
-  output->ip_off = 0; // No ip fragments(offset)
+  output->ip_id = 0; /* No ip fragments */
+  output->ip_off = 0; /* No ip fragments(offset) */
   output->ip_ttl = INIT_TTL;
   output->ip_p = protocol;
   output->ip_src = htonl(ip_src);
   output->ip_dst = htonl(ip_dst);
 
   uint16_t checksum = cksum(output, ip_hdr_size);
-  output->ip_sum = htons(cksum);
+  output->ip_sum = htons(checksum);
 
   return create_combined_packet((uint8_t *) output, sizeof(sr_ip_hdr_t), (uint8_t *) data, len);
 }
@@ -84,11 +86,11 @@ sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, u
   unsigned int ethernet_hdr_size = sizeof(sr_ethernet_hdr_t);
   sr_ethernet_hdr_t* output = malloc(ethernet_hdr_size);
 
-  output->ether_dhost = ether_dhost;
-  output->ether_shost = ether_shost;
-  output->ethertype = ethertype;
+  memcpy(output->ether_dhost, ether_dhost, ETHER_ADDR_LEN);
+  memcpy(output->ether_shost, ether_shost, ETHER_ADDR_LEN);
+  output->ether_type = ethertype;
 
-  return create_combined_packet((uint8_t *) output, ethernet_hdr_size, (uint8_t *) data, en);
+  return create_combined_packet((uint8_t *) output, ethernet_hdr_size, (uint8_t *) data, len);
 }
 
 sr_object_t create_packet(uint8_t *packet, unsigned int len) {
@@ -97,7 +99,6 @@ sr_object_t create_packet(uint8_t *packet, unsigned int len) {
   output.len = len;
   return output;
 }
-
 
 sr_object_t create_combined_packet(uint8_t *hdr, unsigned int hdr_len, uint8_t *data, unsigned int data_len) {
   sr_object_t output;
@@ -117,7 +118,7 @@ struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targ
     struct sr_rt* output = NULL;
 
     while(currRTEntry){
-        if(targetIPMatchesEntry(ntohl((uint32_t)currRTEntry->dest.s_addr), (uint32_t)currRTEntry->mask.s_addr, targetIP)==1){
+        if(targetIPMatchesEntry(currRTEntry->dest.s_addr, currRTEntry->mask.s_addr, targetIP)==1){
             if((uint32_t)currRTEntry->mask.s_addr > longestMask){
                 longestMask = (uint8_t)currRTEntry->mask.s_addr;
                 output = currRTEntry;
@@ -134,7 +135,7 @@ int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target) {
     uint32_t testMask = 0xFFFFFFFF;
     /*testMask = testMask << (32 - mask);*/
 
-    if((entry & mask) == (target & mask)){
+    if((ntohl(entry) & mask) == (target & mask)){
         return 1;
     }
     return 0;

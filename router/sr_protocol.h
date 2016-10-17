@@ -78,7 +78,7 @@
 #define ICMP_DATA_SIZE 28
 #define ETHER_ADDR_LEN 6
 #define sr_IFACE_NAMELEN 32
-
+#define INIT_TTL 255
 
 /* 
  *  Ethernet packet header prototype.  Too many O/S's define this differently.

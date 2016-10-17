@@ -10,7 +10,6 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_protocol.h"
-#include "s.h"
 
 /* 
   This function gets called every second. For each request sent out, we keep
@@ -30,7 +29,7 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
     while(currReq != NULL){
         currReqCpy = currReq;
         currReq = currReq->next;
-        handle_arpreq(currReq, sr);
+        handle_arpreq(currReqCpy, sr);
     }
 }
 
@@ -87,14 +86,14 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 sr_object_t sendIPHeader = create_ip_packet(ip_protocol_icmp, IPSrc, icmp_destination, sendICMPPacket.packet,
                                                                 sendICMPPacket.len);
                 sr_object_t sendEthernet = create_ethernet_packet(currEthHdr->ether_shost, currEthHdr->ether_dhost,
-                                                                    ethertype_ip,sendIPHeader.packet, sendIPHeader.len)
+                                                                    ethertype_ip,sendIPHeader.packet, sendIPHeader.len);
 
                 sr_send_packet(sr, sendEthernet.packet, sendEthernet.len,outgoingInterface);
 
                 packet = packet->next;
                 free(datagram);
                 free(IPPacketWithDatagram);
-                free(sendEthernetPacket.packet);
+                free(sendEthernet.packet);
                 free(sendIPHeader.packet);
                 free(sendICMPPacket.packet);
             }
@@ -116,17 +115,17 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 fprintf(stderr, "problem\n");
             }
 
-            uint32_t broadcastAddr= 0xFFFFFF;
+            uint8_t broadcastAddr[ETHER_ADDR_LEN]  = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 
-            uint8_t *arp_packet = create_ethernet_packet(broadcastAddr, newArpReq->ar_sha,
+            sr_object_t arp_packet = create_ethernet_packet(broadcastAddr, newArpReq->ar_sha,
                                                                     ethertype_arp,(uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
 
-            sr_send_packet(sr, (uint8_t *) arp_packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t), sr_if->name);
+            sr_send_packet(sr, arp_packet.packet, arp_packet.len, sr_if->name);
             req->sent = time(NULL);
             req->times_sent++;
 
-            free(newAprReq);
-            free(arp_packet);
+            free(newArpReq);
+            free(arp_packet.packet);
         }
 
     }
@@ -185,9 +184,9 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply){
     unsigned char* replyAddr = ARPReply->ar_sha;
     uint32_t replyIP = ARPReply->ar_sip;
 
-    struct sr_arpreq *arpreq = sr_arpcache_insert(sr->*cache,replyAddr,replyIP);
+    struct sr_arpreq *arpreq = sr_arpcache_insert(&(sr->cache),replyAddr,replyIP);
     if(arpreq){
-        struct sr_packet* = arpreq->packets;
+        struct sr_packet* packets = arpreq->packets;
         while(packets){
             memcpy(packets->buf, replyAddr, ETHER_ADDR_LEN);
 
@@ -196,7 +195,7 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply){
             struct sr_rt* targetRT = getInterfaceLongestMatch(sr->routing_table, replyIP);
             struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
             sr_send_packet(sr , packets->buf , packets->len, targetInterface->name);
-            packets = packets.next;
+            packets = packets->next;
         }
     }
 
