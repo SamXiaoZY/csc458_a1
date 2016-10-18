@@ -72,6 +72,7 @@ void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 sr_ethernet_hdr_t *sr_copy_ethernet_hdr(uint8_t *ethernet_packet);
 struct sr_arp_hdr *sr_copy_arp_hdr(uint8_t *ethernet_packet);
 uint8_t *sr_copy_ip_packet(uint8_t *ethernet_packet, unsigned int ip_packet_len);
+struct sr_if *sr_copy_interface(struct sr_if *interface);
 
 void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct sr_ethernet_hdr* ethernet_hdr);
 void sr_handle_arp_request(struct sr_instance* sr, struct sr_ethernet_hdr *ethernet_hdr, struct sr_arp_hdr *arp_hdr, struct sr_if* self_interface);

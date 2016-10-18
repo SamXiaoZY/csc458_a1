@@ -5,6 +5,7 @@
 #include "sr_protocol.h"
 #include "sr_utils.h"
 #include "sr_rt.h"
+#include "sr_if.h"
 
 /* Creates the checksum of the first len bytes of _data*/
 uint16_t cksum (const void *_data, int len) {
@@ -183,6 +184,12 @@ void transform_network_to_hardware_arp_header(sr_arp_hdr_t* arp_hdr) {
   arp_hdr->ar_tip = ntohl(arp_hdr->ar_tip);
   swap_mac(arp_hdr->ar_sha);
   swap_mac(arp_hdr->ar_tha);
+}
+
+void transform_network_to_hardware_sr_if(struct sr_if* interface) {
+  interface->ip = ntohl(interface->ip);
+  interface->speed = ntohl(interface->speed);
+  swap_mac(interface->addr);
 }
 
 void transform_hardware_to_network_ethernet_header(sr_ethernet_hdr_t* eth_hdr) {

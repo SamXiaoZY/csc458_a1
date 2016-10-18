@@ -28,6 +28,8 @@
 #ifndef SR_UTILS_H
 #define SR_UTILS_H
 
+struct sr_if;
+
 uint16_t cksum(const void *_data, int len);
 int verify_cksum (const void *_data, int len, uint16_t val);
 uint16_t ethertype(uint8_t *buf);

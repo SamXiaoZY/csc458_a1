@@ -83,7 +83,9 @@ void sr_handlepacket(struct sr_instance* sr,
   /* fill in code here */
 
   struct sr_ethernet_hdr *ethernet_hdr = sr_copy_ethernet_hdr(packet);
-  struct sr_if* self_interface = sr_get_interface(sr, interface);
+  /* Swap interface to hardware */
+  struct sr_if* incoming_network_interface = sr_get_interface(sr, interface);
+  struct sr_if* incoming_hardware_interface = sr_copy_interface(incoming_network_interface);
   struct sr_arp_hdr *arp_hdr = sr_copy_arp_hdr(packet);
 
   /* If receive an ARP packet and we are recipient*/
@@ -91,7 +93,7 @@ void sr_handlepacket(struct sr_instance* sr,
 
     /* If ARP request, reply with our mac address*/
     if (arp_hdr->ar_op == arp_op_request) {
-      sr_handle_arp_request(sr, ethernet_hdr, arp_hdr, self_interface);
+      sr_handle_arp_request(sr, ethernet_hdr, arp_hdr, incoming_hardware_interface);
     } else if (arp_hdr->ar_op == arp_op_reply){
       /* If ARP response, remove the ARP request from the queue, update cache, forward any packets that were waiting on that ARP request
       all Gorden's function*/
@@ -118,6 +120,7 @@ void sr_handlepacket(struct sr_instance* sr,
     free(ip_packet);
   }
   free(ethernet_hdr);
+  free(incoming_hardware_interface);
 }/* end sr_handlepacket */
 
 
@@ -238,9 +241,9 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
 
 /* Create an Ethernet packet and send it, len = size of data in bytes*/
 void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, uint16_t len) {
-  sr_object_t ethernet_packet = create_ethernet_packet(ether_shost, ether_dhost, ethertype, data, len);
+  char* outgoing_interface = get_interface_from_mac(ether_shost, sr);
 
-  char* outgoing_interface = get_interface_from_mac(((sr_ethernet_hdr_t *) ethernet_packet.packet)->ether_shost, sr);
+  sr_object_t ethernet_packet = create_ethernet_packet(ether_shost, ether_dhost, ethertype, data, len);
 
   sr_send_packet(sr, ethernet_packet.packet, 
                 ethernet_packet.len, 
@@ -298,3 +301,13 @@ uint8_t *sr_copy_ip_packet(uint8_t *ethernet_packet, unsigned int ip_packet_len)
   transform_network_to_hardware_ip_header((sr_ip_hdr_t *)ip_packet);
   return ip_packet;
 }
+
+/* Copy the interface and initialize it in hardware order*/
+struct sr_if *sr_copy_interface(struct sr_if *interface) {
+  unsigned int size = sizeof(struct sr_if);
+  struct sr_if *interface_copy = malloc(size);
+
+  memcpy(interface_copy, interface, size);
+  transform_network_to_hardware_sr_if(interface_copy);
+  return interface_copy;
+} 

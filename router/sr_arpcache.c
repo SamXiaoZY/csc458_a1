@@ -160,22 +160,33 @@ struct sr_rt* get_Node_From_RoutingTable(struct sr_instance* sr, uint32_t ip){
 return NULL;
 }
 
-char* get_interface_from_mac(uint8_t *ether_shost, struct sr_instance* sr){
+char* get_interface_from_mac(uint8_t *ether_shost, struct sr_instance* sr) {
+    /* Input Ethernet is hardware order */
+    uint8_t* hardware_ether_shost = malloc(6);
+    memcpy(hardware_ether_shost, ether_shost, 6);
+    swap_mac(hardware_ether_shost);
+
     struct sr_if* interfaceList = sr->if_list;
     int i;
     while(interfaceList){
+        int matching = 1;
 
         /*compare*/ 
-        for(i = 0; i<ETHER_ADDR_LEN; i++){
-            if(interfaceList->addr[i] !=  ether_shost[i]){
+        for(i = 0; i<ETHER_ADDR_LEN; i++) {
+            if(interfaceList->addr[i] !=  hardware_ether_shost[i]) {
+                matching = 0;
                 break;
             }
         }
-        if(i == ETHER_ADDR_LEN - 1){
+
+        if (matching) {
+            free(hardware_ether_shost);
             return interfaceList->name;
         }
+
         interfaceList = interfaceList->next;
     }
+    free(hardware_ether_shost);
     return NULL;
 }
 
