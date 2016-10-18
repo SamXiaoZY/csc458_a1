@@ -143,8 +143,8 @@ void sr_handle_arp_request(struct sr_instance* sr, struct sr_ethernet_hdr *ether
   struct sr_arp_hdr *arp_reponse_hdr = sr_create_arp_response_hdr(arp_hdr, out_interface->addr, out_interface->ip, arp_hdr->ar_sha, arp_hdr->ar_sip);
 
   sr_create_send_ethernet_packet(sr,
+      out_interface->addr, 
       ethernet_hdr->ether_shost, 
-      ethernet_hdr->ether_dhost, 
       ethertype_arp, 
       (uint8_t *) arp_reponse_hdr, 
       sizeof(sr_arp_hdr_t));
@@ -229,7 +229,7 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
       eth_src = outgoing_interface->addr;
       eth_dest = arp_entry->mac;
 
-      sr_create_send_ethernet_packet(sr, eth_src, eth_dest, ethertype_ip, ip_packet, ip_packet_len - ip_hdr_size);
+      sr_create_send_ethernet_packet(sr, eth_dest, eth_src, ethertype_ip, ip_packet, ip_packet_len - ip_hdr_size);
     }
     free(arp_entry);
   }
@@ -238,10 +238,13 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
 
 /* Create an Ethernet packet and send it, len = size of data in bytes*/
 void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, uint16_t len) {
-  sr_object_t ethernet_packet = create_ethernet_packet(ether_dhost, ether_shost, ethertype, data, len);
+  sr_object_t ethernet_packet = create_ethernet_packet(ether_shost, ether_dhost, ethertype, data, len);
+
+  char* outgoing_interface = get_interface_from_mac(((sr_ethernet_hdr_t *) ethernet_packet.packet)->ether_shost, sr);
+
   sr_send_packet(sr, ethernet_packet.packet, 
                 ethernet_packet.len, 
-                get_interface_from_mac(((sr_ethernet_hdr_t *) ethernet_packet.packet)->ether_dhost, sr));
+                outgoing_interface);
 
   free(ethernet_packet.packet);
 }
