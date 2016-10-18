@@ -53,6 +53,7 @@ void transform_network_to_hardware_ip_header(sr_ip_hdr_t* ip_hdr);
 void transform_network_to_hardware_icmp_header (sr_icmp_hdr_t* icmp_hdr);
 void transform_network_to_hardware_icmp_t3_header (sr_icmp_t3_hdr_t* icmp_t3_hdr);
 void transform_network_to_hardware_arp_header (sr_arp_hdr_t* arp_hdr);
+void transform_network_to_hardware_sr_if(struct sr_if* interface);
 
 void transform_hardware_to_network_ethernet_header(sr_ethernet_hdr_t* eth_hdr);
 void transform_hardware_to_network_ip_header(sr_ip_hdr_t* ip_hdr);

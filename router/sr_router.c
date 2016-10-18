@@ -151,16 +151,26 @@ void sr_handle_arp_request(struct sr_instance* sr, struct sr_ethernet_hdr *ether
       ethertype_arp, 
       (uint8_t *) arp_reponse_hdr, 
       sizeof(sr_arp_hdr_t));
+
+  free(arp_reponse_hdr);
 }
 
 /* Set source ip, source MAC and target MAC of the ARP response header*/
 struct sr_arp_hdr *sr_create_arp_response_hdr(struct sr_arp_hdr *arp_hdr, unsigned char *src_mac, uint32_t src_ip, unsigned char *dest_mac, uint32_t dest_ip) {
-  memcpy(arp_hdr->ar_sha, src_mac, ETHER_ADDR_LEN);
+
+  unsigned int size = sizeof(sr_arp_hdr_t);
+  sr_arp_hdr_t arp_reponse_hdr = malloc(size);
+  memcpy(arp_reponse_hdr, arp_hdr, size);
+
+  arp_hdr->ar_sha = src_mac;
   arp_hdr->ar_sip = src_ip;
-  memcpy(arp_hdr->ar_tha, dest_mac, ETHER_ADDR_LEN);
+  arp_hdr->ar_tha = dest_mac;
   arp_hdr->ar_tip = dest_ip;
   arp_hdr->ar_op = arp_op_reply;
-  return arp_hdr;
+
+  transform_hardware_to_network_arp_header(arp_hdr);
+
+  return sr_arp_hdr_t;
 }
 
 /*  Check for packet minimum length and checksum*/
@@ -225,6 +235,7 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
     } else if (arp_entry == NULL) {
       /* Entry for ip_dst missing in cache table, queue the packet*/
       char* iface = get_interface_from_mac(ethernet_hdr->ether_shost, sr);
+
       sr_arpcache_queuereq(&(sr->cache), ip_hdr->ip_dst, ip_packet, ip_packet_len, iface);
     } else {
       /* When forwarding to next-hop, only mac addresses change*/
