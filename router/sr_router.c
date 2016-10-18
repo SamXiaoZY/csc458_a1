@@ -162,9 +162,9 @@ struct sr_arp_hdr *sr_create_arp_response_hdr(struct sr_arp_hdr *arp_hdr, unsign
   sr_arp_hdr_t *arp_reponse_hdr = malloc(size);
   memcpy(arp_reponse_hdr, arp_hdr, size);
 
-  arp_reponse_hdr->ar_sha = src_mac;
+  memcpy(arp_reponse_hdr->ar_sha, src_mac, ETHER_ADDR_LEN);
   arp_reponse_hdr->ar_sip = src_ip;
-  arp_reponse_hdr->ar_tha = dest_mac;
+  memcpy(arp_reponse_hdr->ar_tha, dest_mac, ETHER_ADDR_LEN);
   arp_reponse_hdr->ar_tip = dest_ip;
   arp_reponse_hdr->ar_op = arp_op_reply;
 
