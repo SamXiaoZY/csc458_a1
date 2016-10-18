@@ -159,18 +159,18 @@ void sr_handle_arp_request(struct sr_instance* sr, struct sr_ethernet_hdr *ether
 struct sr_arp_hdr *sr_create_arp_response_hdr(struct sr_arp_hdr *arp_hdr, unsigned char *src_mac, uint32_t src_ip, unsigned char *dest_mac, uint32_t dest_ip) {
 
   unsigned int size = sizeof(sr_arp_hdr_t);
-  sr_arp_hdr_t arp_reponse_hdr = malloc(size);
+  sr_arp_hdr_t *arp_reponse_hdr = malloc(size);
   memcpy(arp_reponse_hdr, arp_hdr, size);
 
-  arp_hdr->ar_sha = src_mac;
-  arp_hdr->ar_sip = src_ip;
-  arp_hdr->ar_tha = dest_mac;
-  arp_hdr->ar_tip = dest_ip;
-  arp_hdr->ar_op = arp_op_reply;
+  arp_reponse_hdr->ar_sha = src_mac;
+  arp_reponse_hdr->ar_sip = src_ip;
+  arp_reponse_hdr->ar_tha = dest_mac;
+  arp_reponse_hdr->ar_tip = dest_ip;
+  arp_reponse_hdr->ar_op = arp_op_reply;
 
-  transform_hardware_to_network_arp_header(arp_hdr);
+  transform_hardware_to_network_arp_header(arp_reponse_hdr);
 
-  return sr_arp_hdr_t;
+  return arp_reponse_hdr;
 }
 
 /*  Check for packet minimum length and checksum*/
