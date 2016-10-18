@@ -92,7 +92,7 @@ void sr_handlepacket(struct sr_instance* sr,
     /* If ARP request, reply with our mac address*/
     if (arp_hdr->ar_op == arp_op_request) {
       sr_handle_arp_request(sr, ethernet_hdr, arp_hdr, self_interface);
-    } else if (arp_hdr->ar_op != arp_op_request){
+    } else if (arp_hdr->ar_op == arp_op_reply){
       /* If ARP response, remove the ARP request from the queue, update cache, forward any packets that were waiting on that ARP request
       all Gorden's function*/
       receviedARPReply(sr, arp_hdr, interface);
@@ -123,10 +123,13 @@ void sr_handlepacket(struct sr_instance* sr,
 
 /* Determine if the router contains the intended recipient of the ip packet*/
 int sr_is_packet_recipient(struct sr_instance *sr, uint32_t ip) {
+  /* The interfaces are represented as big endian */
+  uint32_t network_ip = htonl(ip);
+  
   struct sr_if* if_walker = sr->if_list;
   while(if_walker)
   {
-    if(if_walker->ip == ip) { 
+    if(if_walker->ip == network_ip) { 
       return 1; 
     }
     if_walker = if_walker->next;

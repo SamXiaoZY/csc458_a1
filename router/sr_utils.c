@@ -176,9 +176,9 @@ void transform_network_to_hardware_icmp_t3_header(sr_icmp_t3_hdr_t* icmp_t3_hdr)
 }
 
 void transform_network_to_hardware_arp_header(sr_arp_hdr_t* arp_hdr) {
-  arp_hdr->ar_hrd = ntohl(arp_hdr->ar_hrd);
-  arp_hdr->ar_pro = ntohl(arp_hdr->ar_pro);
-  arp_hdr->ar_op = ntohl(arp_hdr->ar_op);
+  arp_hdr->ar_hrd = ntohs(arp_hdr->ar_hrd);
+  arp_hdr->ar_pro = ntohs(arp_hdr->ar_pro);
+  arp_hdr->ar_op = ntohs(arp_hdr->ar_op);
   arp_hdr->ar_sip = ntohl(arp_hdr->ar_sip);
   arp_hdr->ar_tip = ntohl(arp_hdr->ar_tip);
   swap_mac(arp_hdr->ar_sha);
@@ -204,9 +204,9 @@ void transform_hardware_to_network_icmp_t3_header(sr_icmp_t3_hdr_t* icmp_t3_hdr)
 }
 
 void transform_hardware_to_network_arp_header(sr_arp_hdr_t* arp_hdr) {
-  arp_hdr->ar_hrd = htonl(arp_hdr->ar_hrd);
-  arp_hdr->ar_pro = htonl(arp_hdr->ar_pro);
-  arp_hdr->ar_op = htonl(arp_hdr->ar_op);
+  arp_hdr->ar_hrd = htons(arp_hdr->ar_hrd);
+  arp_hdr->ar_pro = htons(arp_hdr->ar_pro);
+  arp_hdr->ar_op = htons(arp_hdr->ar_op);
   arp_hdr->ar_sip = htonl(arp_hdr->ar_sip);
   arp_hdr->ar_tip = htonl(arp_hdr->ar_tip);
   swap_mac(arp_hdr->ar_sha);
