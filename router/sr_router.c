@@ -68,7 +68,7 @@ void sr_init(struct sr_instance* sr)
 
 void sr_handlepacket(struct sr_instance* sr,
         uint8_t *packet/* lent */,
-        unsigned int len,
+        unsigned int len/* Does not include ethernet header */,
         char* interface/* lent */)
 {
   /* REQUIRES */
@@ -82,11 +82,11 @@ void sr_handlepacket(struct sr_instance* sr,
 
   /* fill in code here */
 
-  struct sr_ethernet_hdr *ethernet_hdr = sr_copy_ethernet_hdr(packet);
+  sr_ethernet_hdr_t *ethernet_hdr = sr_copy_ethernet_packet(packet, len);
   /* Swap interface to hardware */
   struct sr_if* incoming_network_interface = sr_get_interface(sr, interface);
   struct sr_if* incoming_hardware_interface = sr_copy_interface(incoming_network_interface);
-  struct sr_arp_hdr *arp_hdr = sr_copy_arp_hdr(packet);
+  struct sr_arp_hdr *arp_hdr = sr_copy_arp_hdr((uint8_t *) ethernet_hdr);
 
   /* If receive an ARP packet and we are recipient*/
   if (ethernet_hdr->ether_type == ethertype_arp && sr_is_packet_recipient(sr, arp_hdr->ar_tip)) {
@@ -104,16 +104,15 @@ void sr_handlepacket(struct sr_instance* sr,
 
   } else if (ethernet_hdr->ether_type == ethertype_ip) {
     /* If receive an IP packet*/
-    unsigned int ip_packet_len = len - ETHERNET_HDR_SIZE;
-    uint8_t *ip_packet = sr_copy_ip_packet((uint8_t* )ethernet_hdr, ip_packet_len);
+    uint8_t *ip_packet = sr_copy_ip_packet((uint8_t *) ethernet_hdr, len);
 
     /* Check if the received packet is valid, if not drop the packet*/
-    if (sr_ip_packet_is_valid(ip_packet, ip_packet_len)) {
+    if (sr_ip_packet_is_valid(ip_packet, len)) {
         if (sr_is_packet_recipient(sr, ((sr_ip_hdr_t*)ip_packet)->ip_dst)) {
           sr_handle_packet_reply(sr, ip_packet, ethernet_hdr);
         } 
         else {
-          sr_handle_packet_forward(sr, ethernet_hdr, ip_packet, ip_packet_len);
+          sr_handle_packet_forward(sr, ethernet_hdr, ip_packet, len);
         }
     }
     /* Check if we are recipient of the packet*/
@@ -175,7 +174,10 @@ struct sr_arp_hdr *sr_create_arp_response_hdr(struct sr_arp_hdr *arp_hdr, unsign
 
 /*  Check for packet minimum length and checksum*/
 int sr_ip_packet_is_valid(uint8_t *ip_packet, unsigned int ip_packet_len) {
-  return ip_packet_len >= IP_HDR_SIZE && cksum(ip_packet, ip_packet_len) == 0;
+  transform_hardware_to_network_ip_header((sr_ip_hdr_t *) ip_packet);
+  int valid = ip_packet_len >= IP_HDR_SIZE && cksum(ip_packet, IP_HDR_SIZE) == 0xffff;
+  transform_network_to_hardware_ip_header((sr_ip_hdr_t *) ip_packet);
+  return valid;
 }
 
 void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct sr_ethernet_hdr* ethernet_hdr) {
@@ -288,9 +290,10 @@ void createAndSendIPPacket(struct sr_instance* sr, uint32_t ip_src, uint32_t ip_
 
 /* TODO: Conver from network to hardwarr byte order*/
 /* Copy the header from the Ethernet packet*/
-sr_ethernet_hdr_t *sr_copy_ethernet_hdr(uint8_t *ethernet_packet) {
-  struct sr_ethernet_hdr* ethernet_hdr  = malloc(sizeof(struct sr_ethernet_hdr));
-  memcpy(ethernet_hdr, ethernet_packet, ETHERNET_HDR_SIZE);
+sr_ethernet_hdr_t *sr_copy_ethernet_packet(uint8_t *ethernet_packet, unsigned int len) {
+  unsigned int size = sizeof(struct sr_ethernet_hdr) + len;
+  struct sr_ethernet_hdr* ethernet_hdr  = malloc(size);
+  memcpy(ethernet_hdr, ethernet_packet, size);
   transform_network_to_hardware_ethernet_header(ethernet_hdr);
   return ethernet_hdr;
 }
@@ -308,7 +311,7 @@ sr_arp_hdr_t *sr_copy_arp_hdr(uint8_t *ethernet_packet) {
 /* Copy the IP packet from the Ethernet packet*/
 uint8_t *sr_copy_ip_packet(uint8_t *ethernet_packet, unsigned int ip_packet_len) {
   uint8_t *ip_packet = malloc(ip_packet_len);
-  memcpy(ip_packet, ethernet_packet + ETHERNET_HDR_SIZE, ip_packet_len);
+  memcpy(ip_packet, ethernet_packet + sizeof(sr_ethernet_hdr_t), ip_packet_len);
   transform_network_to_hardware_ip_header((sr_ip_hdr_t *)ip_packet);
   return ip_packet;
 }

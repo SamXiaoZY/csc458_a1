@@ -69,7 +69,7 @@ int sr_read_from_server(struct sr_instance* );
 void sr_init(struct sr_instance* );
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 
-sr_ethernet_hdr_t *sr_copy_ethernet_hdr(uint8_t *ethernet_packet);
+sr_ethernet_hdr_t *sr_copy_ethernet_packet(uint8_t *ethernet_packet, unsigned int len);
 struct sr_arp_hdr *sr_copy_arp_hdr(uint8_t *ethernet_packet);
 uint8_t *sr_copy_ip_packet(uint8_t *ethernet_packet, unsigned int ip_packet_len);
 struct sr_if *sr_copy_interface(struct sr_if *interface);
