@@ -49,6 +49,8 @@ sr_object_t create_icmp_packet(uint8_t type, uint8_t code, uint8_t* data, unsign
 
   icmp_header->icmp_sum = cksum((void*)icmp_header, icmp_hdr_size);
 
+  printf("Calculated checksum of ICMP = %d \n", cksum(icmp_header, icmp_hdr_size));
+
   return create_combined_packet((uint8_t*)icmp_header, icmp_hdr_size, data, len);
 }
 
@@ -69,6 +71,19 @@ sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t
   memcpy(icmp_t3_hdr->data, ip_packet, ICMP_DATA_SIZE);
   icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, icmp_t3_hdr_size);
   transform_network_to_hardware_ip_header((sr_ip_hdr_t *) ip_packet);
+
+  uint64_t *bytes_copied = malloc(8);
+  memcpy(bytes_copied, ip_packet + 20, 8);
+  printf("First 8 bytes of Copied IP datagram = %ld\n", *bytes_copied);
+
+  printf("Calculated checksum of ICMP = %d \n", cksum(icmp_t3_hdr, icmp_t3_hdr_size));
+
+  printf("ICMP Data IP header\n");
+  print_hdr_ip(((uint8_t*)icmp_t3_hdr) + 8);
+
+  uint8_t* data = ((uint8_t*)icmp_t3_hdr)+28;
+
+  printf("Copied 8 bytes of IP datagram = %ld\n", *(uint64_t*)data );
 
   return create_packet((uint8_t *)icmp_t3_hdr, icmp_t3_hdr_size);
 }

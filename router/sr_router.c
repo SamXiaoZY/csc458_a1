@@ -79,6 +79,12 @@ void sr_handlepacket(struct sr_instance* sr,
   assert(interface);
 
   /* fill in code here */
+  printf("Received packets!\n");
+  print_hdrs(packet, len);
+
+  uint64_t *bytes = malloc(8);
+  memcpy(bytes, packet + 34, 8);
+  printf("First 8 bytes of IP datagram = %ld\n", *bytes);
 
   sr_ethernet_hdr_t *ethernet_hdr = sr_copy_ethernet_packet(packet, len);
   /* Swap interface to hardware */
@@ -90,21 +96,25 @@ void sr_handlepacket(struct sr_instance* sr,
   if (ethernet_hdr->ether_type == ethertype_arp && sr_is_packet_recipient(sr, arp_hdr->ar_tip)) {
     /* If ARP request, reply with our mac address*/
     if (arp_hdr->ar_op == arp_op_request) {
+      printf("ARP request!\n");
       sr_handle_arp_request(sr, ethernet_hdr, arp_hdr, incoming_hardware_interface);
     } else if (arp_hdr->ar_op == arp_op_reply){
-      /* If ARP response, remove the ARP request from the queue, update cache, forward any packets that were waiting on that ARP request
-      all Gorden's function*/
+      /* If ARP response, remove the ARP request from the queue, update cache, forward any packets that were waiting on that ARP request */
+      printf("ARP response!\n");
       receviedARPReply(sr, arp_hdr);
     }
   } else if (ethernet_hdr->ether_type == ethertype_ip) {
     /* If receive an IP packet*/
+    printf("IP packet!\n");
     uint8_t *ip_packet = sr_copy_ip_packet((uint8_t *) ethernet_hdr, len - sizeof(struct sr_ethernet_hdr));
     /* Check if the received packet is valid, if not drop the packet*/
     if (sr_ip_packet_is_valid(ip_packet, len)) {
         if (sr_is_packet_recipient(sr, ((sr_ip_hdr_t*)ip_packet)->ip_dst)) {
+          printf("Reciepient!\n");
           sr_handle_packet_reply(sr, ip_packet, ethernet_hdr);
         } 
         else {
+          printf("Not reciepient!\n");
           sr_handle_packet_forward(sr, ethernet_hdr, ip_packet, len - sizeof(struct sr_ethernet_hdr));
         }
     }
@@ -114,6 +124,7 @@ void sr_handlepacket(struct sr_instance* sr,
   free(arp_hdr);
   free(incoming_hardware_interface);
   free(ethernet_hdr);
+  printf("************************************************************\n");
 }/* end sr_handlepacket */
 
 
@@ -137,13 +148,15 @@ int sr_is_packet_recipient(struct sr_instance *sr, uint32_t ip) {
 void sr_handle_arp_request(struct sr_instance* sr, struct sr_ethernet_hdr *ethernet_hdr, struct sr_arp_hdr *arp_hdr, struct sr_if* out_interface) {
 
   struct sr_arp_hdr *arp_reponse_hdr = sr_create_arp_response_hdr(arp_hdr, out_interface->addr, out_interface->ip, arp_hdr->ar_sha, arp_hdr->ar_sip);
-  
+
   sr_create_send_ethernet_packet(sr,
       out_interface->addr, 
       ethernet_hdr->ether_shost, 
       ethertype_arp, 
       (uint8_t *) arp_reponse_hdr, 
       sizeof(sr_arp_hdr_t));
+
+  printf("ARP reponse sended!\n");
 
   free(arp_reponse_hdr);
 }
@@ -171,7 +184,11 @@ int sr_ip_packet_is_valid(uint8_t *ip_packet, unsigned int ip_packet_len) {
   uint16_t cksum = get_network_cksum_from_hardware_ip(ip_packet, IP_HDR_SIZE);
 
   int valid = ip_packet_len >= IP_HDR_SIZE && cksum == 0xffff;
-
+  if (!valid) {
+    printf("IP packet is not Valid!\n");
+    printf("checksum: %d\n", cksum);
+    printf("Packet Size: %d\n", ip_packet_len);
+  }
   return valid;
 }
 
@@ -233,22 +250,21 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
   uint8_t* eth_dest = ethernet_hdr->ether_shost;
   unsigned int ip_hdr_size = sizeof(sr_ip_hdr_t);
 
-
   if (ip_hdr->ip_ttl <= 1) {
+    printf("IP TTL is expired!\n");
     /* Send ICMP time exceeded*/
     sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_time_exceeded, icmp_code_0, 0, ip_packet);
-
     createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
   } else {
-
-
     /* Get the MAC address of next hub*/
     struct sr_rt* longestPrefixIPMatch = getInterfaceLongestMatch(sr->routing_table,ip_hdr->ip_dst);
     struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_hdr->ip_dst);
 
     /* Send ICMP network unreachable if the ip cannot be identified through our routing table */
     if (longestPrefixIPMatch == NULL) {
+      printf("IP is unreachable! Sending ICMP unreachable!\n");
       sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_0, 0, ip_packet);
+      print_hdr_icmp(icmp_t3_wrapper.packet);
       createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
     } else {
     /* Update IP packet checksum */
@@ -257,9 +273,11 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
       ip_hdr->ip_sum = get_network_cksum_from_hardware_ip(ip_packet, ip_hdr_size);
 
       if (arp_entry == NULL) {
+        printf("ARP cache miss! \n");
         /* Entry for ip_dst missing in cache table, queue the packet*/
         queue_ethernet_packet(sr, ip_packet, ip_packet_len);
       } else {
+        printf("Great! Found IP and Mac!\n");
         /* When forwarding to next-hop, only mac addresses change*/
         struct sr_if* outgoing_interface = sr_get_interface(sr, longestPrefixIPMatch->interface);
         eth_src = outgoing_interface->addr;
@@ -283,14 +301,17 @@ void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned 
   sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *) ip_packet;
 
   struct sr_rt* rt = getInterfaceLongestMatch(sr->routing_table, ip_hdr->ip_dst);
+  printf("Interface: %s \n", rt->interface);
   uint32_t hardware_ip_dst = ip_hdr->ip_dst;
-
+  printf("Hardware IP address: %d \n", hardware_ip_dst);
   transform_hardware_to_network_ip_header(ip_hdr);
 
   uint8_t* empty_ether_shost = malloc(6);
   sr_object_t ethernet_packet = create_ethernet_packet(empty_ether_shost, empty_ether_shost, ethertype_ip, ip_packet, ip_packet_len);
   free(empty_ether_shost);
 
+  printf("Queueing ethernet packet:\n");
+  print_hdr_eth(ethernet_packet.packet);
   sr_arpcache_queuereq(&(sr->cache), hardware_ip_dst, ethernet_packet.packet, ethernet_packet.len, rt->interface);
 }
 
@@ -298,7 +319,8 @@ void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned 
 void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, uint16_t len) {
   char* outgoing_interface = get_interface_from_mac(ether_shost, sr);
   sr_object_t ethernet_packet = create_ethernet_packet(ether_shost, ether_dhost, ethertype, data, len);
-
+  printf("Sending Packets:\n");
+  print_hdrs(ethernet_packet.packet, ethernet_packet.len);
   sr_send_packet(sr, ethernet_packet.packet, 
                 ethernet_packet.len, 
                 outgoing_interface);
@@ -322,6 +344,9 @@ void createAndSendIPPacket(struct sr_instance* sr, uint32_t ip_src, uint32_t ip_
       ethertype_ip,
       ip_wrapper.packet,
       ip_wrapper.len);
+
+  printf("Sending Packets:\n");
+  print_hdrs(eth_wrapper.packet, eth_wrapper.len);
 
   sr_send_packet(sr, eth_wrapper.packet, eth_wrapper.len, get_interface_from_mac(eth_src, sr));
 
