@@ -37,7 +37,7 @@ uint8_t ip_protocol(uint8_t *buf) {
   return iphdr->ip_p;
 }
 
-sr_object_t create_icmp_header(uint8_t type, uint8_t code) {
+sr_object_t create_icmp_packet(uint8_t type, uint8_t code, uint8_t* data, unsigned int len) {
   unsigned int icmp_hdr_size = sizeof(sr_icmp_hdr_t);
   struct sr_icmp_hdr* icmp_header = malloc(icmp_hdr_size);
   icmp_header->icmp_type = type;
@@ -45,9 +45,9 @@ sr_object_t create_icmp_header(uint8_t type, uint8_t code) {
   icmp_header->icmp_sum = 0;
 
   transform_network_to_hardware_icmp_header(icmp_header);
-  icmp_header->icmp_sum = cksum((void*)icmp_header, sizeof(struct sr_icmp_hdr));
+  icmp_header->icmp_sum = cksum((void*)icmp_header, icmp_hdr_size);
 
-  return create_packet((uint8_t*)icmp_header, icmp_hdr_size);
+  return create_combined_packet((uint8_t*)icmp_header, icmp_hdr_size, data, len);
 }
 
 sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet) {
@@ -76,7 +76,7 @@ sr_object_t create_ip_packet(uint8_t protocol, uint32_t ip_src, uint32_t ip_dst,
   output->ip_v = 4;
   output->ip_hl = 5;
   output->ip_tos = 0; /* Best effort*/
-  output->ip_len = len;
+  output->ip_len = ip_hdr_size + len; /* Total length of header and data */
   output->ip_id = 0; /* No ip fragments */
   output->ip_off = 0; /* No ip fragments(offset) */
   output->ip_ttl = INIT_TTL;
@@ -90,7 +90,7 @@ sr_object_t create_ip_packet(uint8_t protocol, uint32_t ip_src, uint32_t ip_dst,
   uint16_t checksum = cksum(output, ip_hdr_size);
   output->ip_sum = checksum;
   
-  return create_combined_packet((uint8_t *) output, sizeof(sr_ip_hdr_t), (uint8_t *) data, len);
+  return create_combined_packet((uint8_t *) output, ip_hdr_size, data, len);
 }
 
 sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, unsigned int len) {
@@ -103,7 +103,7 @@ sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, u
 
   transform_network_to_hardware_ethernet_header(output);
 
-  return create_combined_packet((uint8_t *) output, ethernet_hdr_size, (uint8_t *) data, len);
+  return create_combined_packet((uint8_t *) output, ethernet_hdr_size, data, len);
 }
 
 sr_object_t create_packet(uint8_t *packet, unsigned int len) {
@@ -164,7 +164,7 @@ void transform_network_to_hardware_ip_header(sr_ip_hdr_t* ip_hdr) {
   ip_hdr->ip_len = ntohs(ip_hdr->ip_len);
   ip_hdr->ip_id = ntohs(ip_hdr->ip_id);
   ip_hdr->ip_off = ntohs(ip_hdr->ip_off);
-  ip_hdr->ip_sum = ntohs(ip_hdr->ip_sum);
+  
   ip_hdr->ip_src = ntohl(ip_hdr->ip_src);
   ip_hdr->ip_dst = ntohl(ip_hdr->ip_dst);
 }

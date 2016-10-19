@@ -36,7 +36,7 @@ uint16_t ethertype(uint8_t *buf);
 uint8_t ip_protocol(uint8_t *buf);
 
 /*originally from arpcache*/
-sr_object_t create_icmp_header(uint8_t type, uint8_t code);
+sr_object_t create_icmp_packet(uint8_t type, uint8_t code, uint8_t* data, unsigned int len);
 sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet);
 sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst, uint8_t* data, unsigned int len);
 sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, unsigned int len);
