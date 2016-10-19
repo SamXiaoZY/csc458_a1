@@ -234,7 +234,7 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
       createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
     } else if (arp_entry == NULL) {
       /* Entry for ip_dst missing in cache table, queue the packet*/
-      char* iface = get_interface_from_mac(ethernet_hdr->ether_shost, sr);
+      char* iface = get_interface_from_mac(eth_src, sr);
 
       sr_arpcache_queuereq(&(sr->cache), ip_hdr->ip_dst, ip_packet, ip_packet_len, iface);
     } else {
