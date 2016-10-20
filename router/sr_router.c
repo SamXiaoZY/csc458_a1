@@ -234,9 +234,7 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
       createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
     } else if (arp_entry == NULL) {
       /* Entry for ip_dst missing in cache table, queue the packet*/
-      char* iface = get_interface_from_mac(eth_src, sr);
-
-      sr_arpcache_queuereq(&(sr->cache), ip_hdr->ip_dst, ip_packet, ip_packet_len, iface);
+      queue_ethernet_packet(sr, ip_packet, ip_packet_len);
     } else {
       /* When forwarding to next-hop, only mac addresses change*/
       struct sr_if* outgoing_interface = sr_get_interface(sr, longestPrefixIPMatch->interface);
@@ -249,6 +247,17 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
   }
 }
 
+void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned int ip_packet_len) {
+  sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *) ip_packet;
+
+  struct sr_rt* rt = getInterfaceLongestMatch(sr->routing_table, ip_hdr->ip_dst);
+  uint32_t hardware_ip_dst = ip_hdr->ip_dst;
+
+  transform_hardware_to_network_ip_header(ip_hdr);
+  sr_object_t ethernet_packet = create_ethernet_packet(NULL, NULL, ethertype_ip, ip_packet, ip_packet_len);
+
+  sr_arpcache_queuereq(&(sr->cache), hardware_ip_dst, ethernet_packet.packet, ip_packet_len, rt->interface);
+}
 
 /* Create an Ethernet packet and send it, len = size of data in bytes*/
 void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, uint16_t len) {
