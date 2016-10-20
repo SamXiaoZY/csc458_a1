@@ -104,7 +104,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
             sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packet->buf;
 
             struct sr_rt* rt;
-            rt = get_Node_From_RoutingTable(sr, req->ip);
+            rt = get_Node_From_RoutingTable(sr, htonl(req->ip));
             if(!rt){
                 fprintf(stderr, "problem\n");
             }
@@ -117,15 +117,24 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
 
             uint8_t broadcastAddr[ETHER_ADDR_LEN]  = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 
-            sr_object_t arp_packet = create_ethernet_packet(broadcastAddr, newArpReq->ar_sha,
-                                                                    ethertype_arp,(uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
+            sr_object_t arp_packet;
 
-            sr_send_packet(sr, arp_packet.packet, arp_packet.len, sr_if->name);
+            struct sr_if* interfaces = sr->if_list;
+            while(interfaces) {
+                uint8_t* sourceMac = malloc(6);
+                memcpy(sourceMac, interfaces->addr, 6);
+                swap_mac(sourceMac);
+                arp_packet = create_ethernet_packet(sourceMac, broadcastAddr, ethertype_arp,(uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
+                
+                sr_send_packet(sr, arp_packet.packet, arp_packet.len, interfaces->name);
+                interfaces = interfaces->next;
+                free(sourceMac);
+                free(arp_packet.packet);
+            }
             req->sent = time(NULL);
             req->times_sent++;
 
             free(newArpReq);
-            free(arp_packet.packet);
         }
 
     }
