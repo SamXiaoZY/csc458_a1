@@ -150,7 +150,7 @@ sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, str
   output->ar_op = htons(arp_op_request);
   output->ar_sip = sr_if->ip;
   memcpy(&output->ar_sha[0], &sr_if->addr[0], ETHER_ADDR_LEN);
-  swap(target_mac);
+  swap_mac(target_mac);
   memcpy(&output->ar_tha[0], target_mac, ETHER_ADDR_LEN);
   output->ar_tip = ntohl(req->ip);
 
