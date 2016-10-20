@@ -257,7 +257,10 @@ struct sr_arpentry *sr_arpcache_lookup(struct sr_arpcache *cache, uint32_t ip) {
    that corresponds to this ARP request. You should free the passed *packet.
    
    A pointer to the ARP request is returned; it should not be freed. The caller
-   can remove the ARP request from the queue by calling sr_arpreq_destroy. */
+   can remove the ARP request from the queue by calling sr_arpreq_destroy.
+   ip = hardware order ip_dst
+   packet = network order ethernet packet without eth_shost and eth_dhost
+   iface = outgoing interface name */
 struct sr_arpreq *sr_arpcache_queuereq(struct sr_arpcache *cache,
                                        uint32_t ip,
                                        uint8_t *packet,           /* borrowed */
