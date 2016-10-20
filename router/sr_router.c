@@ -168,9 +168,9 @@ struct sr_arp_hdr *sr_create_arp_response_hdr(struct sr_arp_hdr *arp_hdr, unsign
 
 /*  Check for packet minimum length and checksum*/
 int sr_ip_packet_is_valid(uint8_t *ip_packet, unsigned int ip_packet_len) {
-  transform_hardware_to_network_ip_header((sr_ip_hdr_t *) ip_packet);
-  int valid = ip_packet_len >= IP_HDR_SIZE && cksum(ip_packet, IP_HDR_SIZE) == 0xffff;
-  transform_network_to_hardware_ip_header((sr_ip_hdr_t *) ip_packet);
+  uint16_t cksum = get_network_cksum_from_hardware_ip(ip_packet, IP_HDR_SIZE);
+
+  int valid = ip_packet_len >= IP_HDR_SIZE && cksum == 0xffff;
 
   return valid;
 }
@@ -216,7 +216,7 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
   } else {
     /* Update IP packet checksum */
     ip_hdr->ip_sum = 0;
-    ip_hdr->ip_sum = cksum(ip_packet, ip_hdr_size);
+    ip_hdr->ip_sum = get_network_cksum_from_hardware_ip(ip_packet, ip_hdr_size);
 
     /* Get the MAC address of next hub*/
     struct sr_rt* longestPrefixIPMatch = getInterfaceLongestMatch(sr->routing_table,ip_hdr->ip_dst);

@@ -22,9 +22,12 @@ uint16_t cksum (const void *_data, int len) {
   return sum ? sum : 0xffff;
 }
 
-int verify_cksum (const void *_data, int len, uint16_t val) {
-  /* Get the complement of the recomputed checksum to get the sum of all 16*/
-  return (~cksum(_data, len) + val) == 0;
+uint16_t get_network_cksum_from_hardware_ip(uint8_t* ip_hdr, int len) {
+  transform_hardware_to_network_ip_header((sr_ip_hdr_t *) ip_hdr);
+  uint16_t checksum = cksum(ip_hdr, len);
+  transform_network_to_hardware_ip_header((sr_ip_hdr_t *) ip_hdr);
+
+  return checksum;
 }
 
 uint16_t ethertype(uint8_t *buf) {

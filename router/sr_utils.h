@@ -31,7 +31,7 @@
 struct sr_if;
 
 uint16_t cksum(const void *_data, int len);
-int verify_cksum (const void *_data, int len, uint16_t val);
+uint16_t get_network_cksum_from_hardware_ip(uint8_t* ip_hdr, int len);
 uint16_t ethertype(uint8_t *buf);
 uint8_t ip_protocol(uint8_t *buf);
 
