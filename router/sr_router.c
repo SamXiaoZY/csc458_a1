@@ -96,8 +96,7 @@ void sr_handlepacket(struct sr_instance* sr,
     } else if (arp_hdr->ar_op == arp_op_reply){
       /* If ARP response, remove the ARP request from the queue, update cache, forward any packets that were waiting on that ARP request
       all Gorden's function*/
-      printf("received ARP response\n");
-      receviedARPReply(sr, arp_hdr, interface);
+      receviedARPReply(sr, arp_hdr);
     }
     free(arp_hdr);
   } else if (ethernet_hdr->ether_type == ethertype_ip) {
