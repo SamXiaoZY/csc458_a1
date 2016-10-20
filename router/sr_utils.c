@@ -128,7 +128,7 @@ sr_object_t create_combined_packet(uint8_t *hdr, unsigned int hdr_len, uint8_t *
 }
    
 struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP) {
-
+  /* Target IP should be hardware */
     struct sr_rt* currRTEntry = routingTable;
     uint32_t longestMask = 0;
     struct sr_rt* output = NULL;

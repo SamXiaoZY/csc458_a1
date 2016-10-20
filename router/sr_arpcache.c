@@ -52,7 +52,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                     continue;
                 }
 
-                /*NEED TO CHECK IF RAW ETHERNET FRAME HAS 8 BYTE PREAMBLE */
+                /* Ethernet header is in network order */
                 sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packet->buf;
                 if(currEthHdr->ether_type != ethertype_ip){
                     fprintf(stderr, "Packet ignored due to unrecognized ether type: %d\n",currEthHdr->ether_type);
@@ -67,35 +67,42 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                     continue;
                 }
 
+                /* IP Packet is in network order */
                 sr_ip_hdr_t* currIPHdr = (sr_ip_hdr_t*) &(packet->buf[sizeof(sr_ethernet_hdr_t)]);
                 uint8_t* datagram = malloc(8);
                 memcpy(datagram, &packet->buf[sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t)], 8);
-                
-                uint8_t* IPPacketWithDatagram = malloc(ICMP_DATA_SIZE);
-                memcpy(IPPacketWithDatagram, currIPHdr, IP_HDR_SIZE);                
-                memcpy(IPPacketWithDatagram+IP_HDR_SIZE, datagram, DATAGRAM_SIZE);
 
-                uint32_t icmp_destination = currIPHdr->ip_src;
+                /* Perform network to hardware conversions since non-built-in helper functions assume hardware order */
+                uint32_t icmp_destination = ntohl(currIPHdr->ip_src);
 
                 struct sr_rt* targetRT = getInterfaceLongestMatch(sr->routing_table, icmp_destination);
                 struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
 
-                uint32_t IPSrc = htonl(targetInterface->ip);
+                uint32_t IPSrc = ntohl(targetInterface->ip);
 
-                sr_object_t sendICMPPacket = create_icmp_t3_packet(3,1,0,(uint8_t*)IPPacketWithDatagram);
+                uint8_t* hardware_ether_src = malloc(6);
+                memcpy(hardware_ether_src, currEthHdr->ether_shost, 6);
+                swap_mac(hardware_ether_src);
+
+                uint8_t* hardware_ether_dest = malloc(6);
+                memcpy(hardware_ether_dest, currEthHdr->ether_dhost, 6);
+                swap_mac(hardware_ether_dest);
+
+                sr_object_t sendICMPPacket = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_1, 0, (uint8_t*)currIPHdr);
                 sr_object_t sendIPHeader = create_ip_packet(ip_protocol_icmp, IPSrc, icmp_destination, sendICMPPacket.packet,
                                                                 sendICMPPacket.len);
-                sr_object_t sendEthernet = create_ethernet_packet(currEthHdr->ether_shost, currEthHdr->ether_dhost,
-                                                                    ethertype_ip,sendIPHeader.packet, sendIPHeader.len);
+                sr_object_t sendEthernet = create_ethernet_packet(hardware_ether_src, hardware_ether_dest,
+                                                                    ethertype_ip, sendIPHeader.packet, sendIPHeader.len);
                 printf("sending out ICMP unreachable due to ARP failure\n");
                 sr_send_packet(sr, sendEthernet.packet, sendEthernet.len,outgoingInterface);
 
                 packet = packet->next;
                 free(datagram);
-                free(IPPacketWithDatagram);
                 free(sendEthernet.packet);
                 free(sendIPHeader.packet);
                 free(sendICMPPacket.packet);
+                free(hardware_ether_src);
+                free(hardware_ether_dest);
             }
             sr_arpreq_destroy(&sr->cache, req);
         }
@@ -125,14 +132,13 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
             arp_packet = create_ethernet_packet(sourceMac, broadcastAddr, ethertype_arp,(uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
 
             sr_send_packet(sr, arp_packet.packet, arp_packet.len, rt->interface);
-            free(sourceMac);
-            free(arp_packet.packet);
             req->sent = time(NULL);
             req->times_sent++;
 
             free(newArpReq);
+            free(sourceMac);
+            free(arp_packet.packet);
         }
-
     }
 }
 
