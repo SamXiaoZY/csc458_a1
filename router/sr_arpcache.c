@@ -205,9 +205,6 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply) {
     unsigned char* replyAddr = ARPReply->ar_sha;
     uint32_t replyIP = ARPReply->ar_sip;
 
-    print_addr_eth((uint8_t*)replyAddr);
-    
-
     struct sr_arpreq *arpreq = sr_arpcache_insert(&(sr->cache),replyAddr,replyIP);
     if(arpreq){
         struct sr_packet* packets = arpreq->packets;
