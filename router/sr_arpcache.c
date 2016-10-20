@@ -87,7 +87,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                                                                 sendICMPPacket.len);
                 sr_object_t sendEthernet = create_ethernet_packet(currEthHdr->ether_shost, currEthHdr->ether_dhost,
                                                                     ethertype_ip,sendIPHeader.packet, sendIPHeader.len);
-
+                printf("sending out ICMP unreachable due to ARP failure\n");
                 sr_send_packet(sr, sendEthernet.packet, sendEthernet.len,outgoingInterface);
 
                 packet = packet->next;
@@ -205,19 +205,30 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply, char* inte
     unsigned char* replyAddr = ARPReply->ar_sha;
     uint32_t replyIP = ARPReply->ar_sip;
 
+    printf("received ARP response----%s\n", interface);
+    print_addr_eth((uint8_t*)replyAddr);
+    
+
     struct sr_arpreq *arpreq = sr_arpcache_insert(&(sr->cache),replyAddr,replyIP);
     if(arpreq){
         struct sr_packet* packets = arpreq->packets;
         while(packets){
             /*edit packet ethernet source add*/
-            struct sr_rt* targetRT = getInterfaceLongestMatch(sr->routing_table, replyIP);
-            struct sr_if* myInterface  = sr_get_interface(sr, interface);
+            /*struct sr_rt* targetRT = getInterfaceLongestMatch(sr->routing_table, replyIP);*/
+            struct sr_if* myInterface  = sr_get_interface(sr, packets->iface);
+                printf("sending out packet on---%s\n", packets->iface);
+            if(!myInterface){
+               printf("could not get interface for %s\n", packets->iface);
+               continue;
+            }
             sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packets->buf;
             memcpy(currEthHdr->ether_shost, myInterface->addr, ETHER_ADDR_LEN);
             memcpy(currEthHdr->ether_dhost, replyAddr, ETHER_ADDR_LEN);
+            /*swap_mac(currEthHdr->ether_dhost);*/
+            
 
-            struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
-            sr_send_packet(sr , packets->buf , packets->len, targetInterface->name);
+            /*struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);*/
+            sr_send_packet(sr , packets->buf , packets->len, packets->iface);
             packets = packets->next;
         }
     }
