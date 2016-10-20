@@ -234,7 +234,15 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
       struct sr_if* outgoing_interface = sr_get_interface(sr, longestPrefixIPMatch->interface);
       eth_src = outgoing_interface->addr;
       eth_dest = arp_entry->mac;
-      sr_create_send_ethernet_packet(sr, eth_dest, eth_src, ethertype_ip, ip_packet, ip_packet_len - ip_hdr_size);
+
+      uint8_t* hardware_ether_src = malloc(6);
+      memcpy(hardware_ether_src, eth_src, 6);
+      swap_mac(hardware_ether_src);
+
+      transform_hardware_to_network_ip_header((sr_ip_hdr_t*)ip_packet);
+      sr_create_send_ethernet_packet(sr, hardware_ether_src, eth_dest, ethertype_ip, ip_packet, ip_packet_len - ip_hdr_size);
+
+      free(hardware_ether_src);
     }
     free(arp_entry);
   }
@@ -258,7 +266,6 @@ void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned 
 /* Create an Ethernet packet and send it, len = size of data in bytes*/
 void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, uint16_t len) {
   char* outgoing_interface = get_interface_from_mac(ether_shost, sr);
-
   sr_object_t ethernet_packet = create_ethernet_packet(ether_shost, ether_dhost, ethertype, data, len);
 
   sr_send_packet(sr, ethernet_packet.packet, 

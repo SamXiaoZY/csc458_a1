@@ -216,6 +216,7 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply) {
             packets = packets->next;
         }
     }
+    sr_arpreq_destroy(&sr->cache, arpreq);
 
 }
 
