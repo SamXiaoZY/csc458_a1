@@ -79,7 +79,6 @@ void sr_handlepacket(struct sr_instance* sr,
   assert(interface);
 
   printf("*** -> Received packet of length %d \n",len);
-
   /* fill in code here */
 
   sr_ethernet_hdr_t *ethernet_hdr = sr_copy_ethernet_packet(packet, len);
@@ -90,7 +89,6 @@ void sr_handlepacket(struct sr_instance* sr,
 
   /* If receive an ARP packet and we are recipient*/
   if (ethernet_hdr->ether_type == ethertype_arp && sr_is_packet_recipient(sr, arp_hdr->ar_tip)) {
-
     /* If ARP request, reply with our mac address*/
     if (arp_hdr->ar_op == arp_op_request) {
       sr_handle_arp_request(sr, ethernet_hdr, arp_hdr, incoming_hardware_interface);
@@ -104,8 +102,7 @@ void sr_handlepacket(struct sr_instance* sr,
 
   } else if (ethernet_hdr->ether_type == ethertype_ip) {
     /* If receive an IP packet*/
-    uint8_t *ip_packet = sr_copy_ip_packet((uint8_t *) ethernet_hdr, len);
-
+    uint8_t *ip_packet = sr_copy_ip_packet((uint8_t *) ethernet_hdr, len - sizeof(struct sr_ethernet_hdr));
     /* Check if the received packet is valid, if not drop the packet*/
     if (sr_ip_packet_is_valid(ip_packet, len)) {
         if (sr_is_packet_recipient(sr, ((sr_ip_hdr_t*)ip_packet)->ip_dst)) {
@@ -177,6 +174,7 @@ int sr_ip_packet_is_valid(uint8_t *ip_packet, unsigned int ip_packet_len) {
   transform_hardware_to_network_ip_header((sr_ip_hdr_t *) ip_packet);
   int valid = ip_packet_len >= IP_HDR_SIZE && cksum(ip_packet, IP_HDR_SIZE) == 0xffff;
   transform_network_to_hardware_ip_header((sr_ip_hdr_t *) ip_packet);
+
   return valid;
 }
 
@@ -187,16 +185,16 @@ void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct s
   uint32_t ip_dest = ip_hdr->ip_src;
   uint8_t* eth_src = ethernet_hdr->ether_dhost;
   uint8_t* eth_dest = ethernet_hdr->ether_shost;
-
   /* Return a port unreachable for UDP or TCP type packets through a icmp_t3_header*/
   if (ip_hdr->ip_p == ip_protocol_tcp || ip_hdr->ip_p == ip_protocol_udp) {
     sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_3, 0, ip_packet);
 
-
     createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
   } else if (ip_hdr->ip_p == ip_protocol_icmp && cksum(ip_hdr, ip_hdr->ip_len)) {
     /* If the packet is a valid ICMP echo request, send an echo reply through a icmp_header*/
-    sr_object_t icmp_wrapper = create_icmp_header(icmp_type_echo_reply, icmp_code_0);
+    unsigned int headers_size = sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t);
+    uint8_t* icmp_payload = ip_packet + headers_size;
+    sr_object_t icmp_wrapper = create_icmp_packet(icmp_type_echo_reply, icmp_code_0, icmp_payload, ip_hdr->ip_len - headers_size);
 
     createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_wrapper.packet, icmp_wrapper.len);
   }
@@ -291,9 +289,9 @@ void createAndSendIPPacket(struct sr_instance* sr, uint32_t ip_src, uint32_t ip_
 /* TODO: Conver from network to hardwarr byte order*/
 /* Copy the header from the Ethernet packet*/
 sr_ethernet_hdr_t *sr_copy_ethernet_packet(uint8_t *ethernet_packet, unsigned int len) {
-  unsigned int size = sizeof(struct sr_ethernet_hdr) + len;
-  struct sr_ethernet_hdr* ethernet_hdr  = malloc(size);
-  memcpy(ethernet_hdr, ethernet_packet, size);
+  /*unsigned int size = sizeof(struct sr_ethernet_hdr) + len;*/
+  struct sr_ethernet_hdr* ethernet_hdr  = malloc(len);
+  memcpy(ethernet_hdr, ethernet_packet, len);
   transform_network_to_hardware_ethernet_header(ethernet_hdr);
   return ethernet_hdr;
 }
