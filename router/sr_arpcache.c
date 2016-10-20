@@ -205,7 +205,6 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply) {
     unsigned char* replyAddr = ARPReply->ar_sha;
     uint32_t replyIP = ARPReply->ar_sip;
 
-    printf("received ARP response----%s\n", interface);
     print_addr_eth((uint8_t*)replyAddr);
     
 
@@ -220,7 +219,6 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply) {
             memcpy(currEthHdr->ether_dhost, replyAddr, ETHER_ADDR_LEN);
             swap_mac(currEthHdr->ether_dhost);
 
-            struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
             sr_send_packet(sr , packets->buf , packets->len, packets->iface);
             packets = packets->next;
         }
