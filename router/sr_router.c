@@ -240,7 +240,7 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
       swap_mac(hardware_ether_src);
 
       transform_hardware_to_network_ip_header((sr_ip_hdr_t*)ip_packet);
-      sr_create_send_ethernet_packet(sr, hardware_ether_src, eth_dest, ethertype_ip, ip_packet, ip_packet_len - ip_hdr_size);
+      sr_create_send_ethernet_packet(sr, hardware_ether_src, eth_dest, ethertype_ip, ip_packet, ip_packet_len);
 
       free(hardware_ether_src);
     }
