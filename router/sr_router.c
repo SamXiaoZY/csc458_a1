@@ -254,7 +254,10 @@ void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned 
   uint32_t hardware_ip_dst = ip_hdr->ip_dst;
 
   transform_hardware_to_network_ip_header(ip_hdr);
-  sr_object_t ethernet_packet = create_ethernet_packet(NULL, NULL, ethertype_ip, ip_packet, ip_packet_len);
+
+  uint8_t* empty_ether_shost = malloc(6);
+  sr_object_t ethernet_packet = create_ethernet_packet(empty_ether_shost, empty_ether_shost, ethertype_ip, ip_packet, ip_packet_len);
+  free(empty_ether_shost);
 
   sr_arpcache_queuereq(&(sr->cache), hardware_ip_dst, ethernet_packet.packet, ip_packet_len, rt->interface);
 }
