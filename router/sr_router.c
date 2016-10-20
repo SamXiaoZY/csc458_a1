@@ -251,11 +251,12 @@ void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned 
   sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *) ip_packet;
 
   struct sr_rt* rt = getInterfaceLongestMatch(sr->routing_table, ip_hdr->ip_dst);
+  uint32_t hardware_ip_dst = ip_hdr->ip_dst;
 
   transform_hardware_to_network_ip_header(ip_hdr);
   sr_object_t ethernet_packet = create_ethernet_packet(NULL, NULL, ethertype_ip, ip_packet, ip_packet_len);
 
-  sr_arpcache_queuereq(&(sr->cache), ip_hdr->ip_dst, ethernet_packet.packet, ip_packet_len, rt->interface);
+  sr_arpcache_queuereq(&(sr->cache), hardware_ip_dst, ethernet_packet.packet, ip_packet_len, rt->interface);
 }
 
 /* Create an Ethernet packet and send it, len = size of data in bytes*/
