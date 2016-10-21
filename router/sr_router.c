@@ -126,7 +126,7 @@ int sr_is_packet_recipient(struct sr_instance *sr, uint32_t ip) {
   while(if_walker)
   {
     if(if_walker->ip == network_ip) { 
-return 1; 
+      return 1; 
     }
     if_walker = if_walker->next;
   }
