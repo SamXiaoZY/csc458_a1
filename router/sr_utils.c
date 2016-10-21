@@ -66,8 +66,10 @@ sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t
   transform_hardware_to_network_icmp_t3_header(icmp_t3_hdr);
 
   /* Copy over ip header and 8bytes of datagram as per ICMP type 3/11 definition */
+  transform_hardware_to_network_ip_header((sr_ip_hdr_t *) ip_packet);
   memcpy(icmp_t3_hdr->data, ip_packet, ICMP_DATA_SIZE);
   icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, icmp_t3_hdr_size);
+  transform_network_to_hardware_ip_header((sr_ip_hdr_t *) ip_packet);
 
   return create_packet((uint8_t *)icmp_t3_hdr, icmp_t3_hdr_size);
 }
