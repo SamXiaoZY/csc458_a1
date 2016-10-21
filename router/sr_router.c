@@ -207,17 +207,19 @@ void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct s
     /* If the packet is a valid ICMP echo request, send an echo reply through a icmp_header*/
     struct sr_rt* longestPrefixIPMatch = getInterfaceLongestMatch(sr->routing_table,ip_hdr->ip_src);
     uint32_t nextHopIPHardware = ntohl(longestPrefixIPMatch->gw.s_addr); 
-    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ntohl(longestPrefixIPMatch->gw.s_addr));
+    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), nextHopIPHardware);
    
     unsigned int headers_size = sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t);
     uint8_t* icmp_payload = ip_packet + headers_size;
     sr_object_t icmp_wrapper = create_icmp_packet(icmp_type_echo_reply, icmp_code_0, icmp_payload, ip_hdr->ip_len - headers_size);
     sr_object_t ip_wrapper = create_ip_packet(ip_protocol_icmp, ip_src, ip_dest, icmp_wrapper.packet, icmp_wrapper.len);
     sr_object_t eth_wrapper = create_ethernet_packet(eth_src,eth_dest,ethertype_ip,ip_wrapper.packet,ip_wrapper.len);
+    /* Host unreachable */
     if (longestPrefixIPMatch == NULL) {
       sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_0, 0, ip_packet);
       createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
     } else if (arp_entry == NULL) {
+      /* Queue packet */
       sr_arpcache_queuereq(&(sr->cache), nextHopIPHardware, eth_wrapper.packet, eth_wrapper.len, longestPrefixIPMatch->interface);
     }
     else{
@@ -228,7 +230,7 @@ void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct s
       uint8_t* hardware_ether_src = malloc(6);
       memcpy(hardware_ether_src, eth_src, 6);
       swap_mac(hardware_ether_src);
-      createAndSendIPPacket(sr, ip_src, nextHopIPHardware, hardware_ether_src, eth_dest, icmp_wrapper.packet, icmp_wrapper.len);
+      createAndSendIPPacket(sr, ip_src, ip_dest, hardware_ether_src, eth_dest, icmp_wrapper.packet, icmp_wrapper.len);
     }
     free(icmp_wrapper.packet);
     free(ip_wrapper.packet);
