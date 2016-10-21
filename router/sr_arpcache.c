@@ -10,6 +10,7 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_protocol.h"
+#include "sr_utils.h"
 
 /* 
   This function gets called every second. For each request sent out, we keep
@@ -217,7 +218,8 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply) {
             memcpy(currEthHdr->ether_shost, myInterface->addr, ETHER_ADDR_LEN);
             memcpy(currEthHdr->ether_dhost, replyAddr, ETHER_ADDR_LEN);
             swap_mac(currEthHdr->ether_dhost);
-
+            /*swap_mac(currEthHdr->ether_shost);*/
+            print_hdrs(currEthHdr, packets->len);
             sr_send_packet(sr , packets->buf , packets->len, packets->iface);
             packets = packets->next;
         }
