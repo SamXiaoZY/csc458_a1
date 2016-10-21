@@ -208,6 +208,8 @@ void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct s
     struct sr_rt* longestPrefixIPMatch = getInterfaceLongestMatch(sr->routing_table,ip_hdr->ip_src);
     uint32_t nextHopIPHardware = ntohl(longestPrefixIPMatch->gw.s_addr); 
     struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), nextHopIPHardware);
+    printf("next Hop IP = %d\n", nextHopIPHardware);
+    printf("ip_dest = %d\n", ip_dest);
    
     unsigned int headers_size = sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t);
     uint8_t* icmp_payload = ip_packet + headers_size;
