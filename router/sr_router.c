@@ -96,7 +96,6 @@ void sr_handlepacket(struct sr_instance* sr,
       all Gorden's function*/
       receviedARPReply(sr, arp_hdr);
     }
-    free(arp_hdr);
   } else if (ethernet_hdr->ether_type == ethertype_ip) {
     /* If receive an IP packet*/
     uint8_t *ip_packet = sr_copy_ip_packet((uint8_t *) ethernet_hdr, len - sizeof(struct sr_ethernet_hdr));
@@ -112,8 +111,9 @@ void sr_handlepacket(struct sr_instance* sr,
     /* Check if we are recipient of the packet*/
     free(ip_packet);
   }
-  free(ethernet_hdr);
+  free(arp_hdr);
   free(incoming_hardware_interface);
+  free(ethernet_hdr);
 }/* end sr_handlepacket */
 
 
