@@ -47,7 +47,6 @@ sr_object_t create_icmp_packet(uint8_t type, uint8_t code, uint8_t* data, unsign
   icmp_header->icmp_code = code;
   icmp_header->icmp_sum = 0;
 
-  transform_network_to_hardware_icmp_header(icmp_header);
   icmp_header->icmp_sum = cksum((void*)icmp_header, icmp_hdr_size);
 
   return create_combined_packet((uint8_t*)icmp_header, icmp_hdr_size, data, len);
@@ -84,7 +83,7 @@ sr_object_t create_ip_packet(uint8_t protocol, uint32_t ip_src, uint32_t ip_dst,
   output->ip_tos = 0; /* Best effort*/
   output->ip_len = ip_hdr_size + len; /* Total length of header and data */
   output->ip_id = 0; /* No ip fragments */
-  output->ip_off = 0; /* No ip fragments(offset) */
+  output->ip_off = IP_DF; /* No ip fragments(offset) */
   output->ip_ttl = INIT_TTL;
   output->ip_p = protocol;
   output->ip_src = ip_src; 
