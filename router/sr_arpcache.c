@@ -54,19 +54,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
 
                 /* Ethernet header is in network order */
                 sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packet->buf;
-                if(currEthHdr->ether_type != ethertype_ip){
-                    fprintf(stderr, "Packet ignored due to unrecognized ether type: %d\n",currEthHdr->ether_type);
-                    packet = packet->next;
-                    continue;
-                }
-
-                char *outgoingInterface = get_interface_from_mac(currEthHdr->ether_dhost, sr);
-                if(!outgoingInterface){
-                    fprintf(stderr, "Packet ignored due to not being able to find outgoing interface.\n");
-                    packet = packet->next;
-                    continue;
-                }
-
+                
                 /* IP Packet is in network order */
                 sr_ip_hdr_t* currIPHdr = (sr_ip_hdr_t*) &(packet->buf[sizeof(sr_ethernet_hdr_t)]);
                 uint8_t* datagram = malloc(8);
@@ -94,7 +82,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 sr_object_t sendEthernet = create_ethernet_packet(hardware_ether_src, hardware_ether_dest,
                                                                     ethertype_ip, sendIPHeader.packet, sendIPHeader.len);
                 printf("sending out ICMP unreachable due to ARP failure\n");
-                sr_send_packet(sr, sendEthernet.packet, sendEthernet.len,outgoingInterface);
+                sr_send_packet(sr, sendEthernet.packet, sendEthernet.len, targetInterface->name);
 
                 packet = packet->next;
                 free(datagram);
