@@ -42,7 +42,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
 
     time_t curtime = time(NULL);
     if(difftime(curtime, req->sent) > 1.0){
-        if(req->times_sent > 5){
+        if(req->times_sent >= 5){
             /*sent ICMP unreachable to all packets waiting on this ARPReq*/
             while(packet != NULL){
 
