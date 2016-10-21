@@ -232,7 +232,6 @@ void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct s
   }
 }
 
-
 void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *ethernet_hdr, uint8_t *ip_packet, unsigned int ip_packet_len) {
   sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *) ip_packet;
 
