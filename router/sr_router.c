@@ -106,7 +106,7 @@ void sr_handlepacket(struct sr_instance* sr,
           sr_handle_packet_reply(sr, ip_packet, ethernet_hdr);
         } 
         else {
-          sr_handle_packet_forward(sr, ethernet_hdr, ip_packet, len);
+          sr_handle_packet_forward(sr, ethernet_hdr, ip_packet, len - sizeof(struct sr_ethernet_hdr));
         }
     }
     /* Check if we are recipient of the packet*/
@@ -224,22 +224,23 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
   sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *) ip_packet;
 
   /* Initialize packet src/dest with 'reply' type values*/
-  uint32_t ip_src = ip_hdr->ip_dst;
+  struct sr_rt* icmp_rt = getInterfaceLongestMatch(sr->routing_table, ip_hdr->ip_src);
+
+  struct sr_if *icmp_outgoing_interface = sr_get_interface(sr, icmp_rt->interface);
+  uint32_t ip_src = ntohl(icmp_outgoing_interface->ip);
   uint32_t ip_dest = ip_hdr->ip_src;
   uint8_t* eth_src = ethernet_hdr->ether_dhost;
   uint8_t* eth_dest = ethernet_hdr->ether_shost;
   unsigned int ip_hdr_size = sizeof(sr_ip_hdr_t);
-  ip_hdr->ip_ttl -= 1;
 
-  if (ip_hdr->ip_ttl <= 0) {
+
+  if (ip_hdr->ip_ttl <= 1) {
     /* Send ICMP time exceeded*/
     sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_time_exceeded, icmp_code_0, 0, ip_packet);
 
     createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
   } else {
-    /* Update IP packet checksum */
-    ip_hdr->ip_sum = 0;
-    ip_hdr->ip_sum = get_network_cksum_from_hardware_ip(ip_packet, ip_hdr_size);
+
 
     /* Get the MAC address of next hub*/
     struct sr_rt* longestPrefixIPMatch = getInterfaceLongestMatch(sr->routing_table,ip_hdr->ip_dst);
@@ -249,23 +250,30 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
     if (longestPrefixIPMatch == NULL) {
       sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_0, 0, ip_packet);
       createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
-    } else if (arp_entry == NULL) {
-      /* Entry for ip_dst missing in cache table, queue the packet*/
-      queue_ethernet_packet(sr, ip_packet, ip_packet_len);
     } else {
-      /* When forwarding to next-hop, only mac addresses change*/
-      struct sr_if* outgoing_interface = sr_get_interface(sr, longestPrefixIPMatch->interface);
-      eth_src = outgoing_interface->addr;
-      eth_dest = arp_entry->mac;
+    /* Update IP packet checksum */
+      ip_hdr->ip_ttl -= 1;
+      ip_hdr->ip_sum = 0;
+      ip_hdr->ip_sum = get_network_cksum_from_hardware_ip(ip_packet, ip_hdr_size);
 
-      uint8_t* hardware_ether_src = malloc(6);
-      memcpy(hardware_ether_src, eth_src, 6);
-      swap_mac(hardware_ether_src);
+      if (arp_entry == NULL) {
+        /* Entry for ip_dst missing in cache table, queue the packet*/
+        queue_ethernet_packet(sr, ip_packet, ip_packet_len);
+      } else {
+        /* When forwarding to next-hop, only mac addresses change*/
+        struct sr_if* outgoing_interface = sr_get_interface(sr, longestPrefixIPMatch->interface);
+        eth_src = outgoing_interface->addr;
+        eth_dest = arp_entry->mac;
 
-      transform_hardware_to_network_ip_header((sr_ip_hdr_t*)ip_packet);
-      sr_create_send_ethernet_packet(sr, hardware_ether_src, eth_dest, ethertype_ip, ip_packet, ip_packet_len);
+        uint8_t* hardware_ether_src = malloc(6);
+        memcpy(hardware_ether_src, eth_src, 6);
+        swap_mac(hardware_ether_src);
 
-      free(hardware_ether_src);
+        transform_hardware_to_network_ip_header((sr_ip_hdr_t*)ip_packet);
+        sr_create_send_ethernet_packet(sr, hardware_ether_src, eth_dest, ethertype_ip, ip_packet, ip_packet_len);
+
+        free(hardware_ether_src);
+      }
     }
     free(arp_entry);
   }

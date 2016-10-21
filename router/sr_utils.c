@@ -61,12 +61,13 @@ sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t
   icmp_t3_hdr->icmp_code = icmp_code;
   icmp_t3_hdr->next_mtu = next_mtu;
   icmp_t3_hdr->icmp_sum = 0;
+  icmp_t3_hdr->unused = 0;
 
-  transform_network_to_hardware_icmp_t3_header(icmp_t3_hdr);
+  transform_hardware_to_network_icmp_t3_header(icmp_t3_hdr);
 
   /* Copy over ip header and 8bytes of datagram as per ICMP type 3/11 definition */
   memcpy(icmp_t3_hdr->data, ip_packet, ICMP_DATA_SIZE);
-  icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, icmp_t3_hdr_size - ICMP_DATA_SIZE);
+  icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, icmp_t3_hdr_size);
 
   return create_packet((uint8_t *)icmp_t3_hdr, icmp_t3_hdr_size);
 }
