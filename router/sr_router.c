@@ -291,7 +291,7 @@ void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned 
   sr_object_t ethernet_packet = create_ethernet_packet(empty_ether_shost, empty_ether_shost, ethertype_ip, ip_packet, ip_packet_len);
   free(empty_ether_shost);
 
-  sr_arpcache_queuereq(&(sr->cache), hardware_ip_dst, ethernet_packet.packet, ip_packet_len, rt->interface);
+  sr_arpcache_queuereq(&(sr->cache), hardware_ip_dst, ethernet_packet.packet, ethernet_packet.len, rt->interface);
 }
 
 /* Create an Ethernet packet and send it, len = size of data in bytes*/
