@@ -38,9 +38,10 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
     /*WARNING MAY NOT WORK IF THE FIRST PACKET in req->packets is EMPTY.8?*/
 
     /*this is a linked list of packets depending on the ARP request*/
-    struct sr_packet *packet = req->packets;
-
+    struct sr_packet *packet = req->packets; 
+    
     time_t curtime = time(NULL);
+
     if(difftime(curtime, req->sent) > 1.0){
         if(req->times_sent >= 5){
             /*sent ICMP unreachable to all packets waiting on this ARPReq*/
@@ -57,6 +58,9 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 
                 /* IP Packet is in network order */
                 sr_ip_hdr_t* currIPHdr = (sr_ip_hdr_t*) &(packet->buf[sizeof(sr_ethernet_hdr_t)]);
+                currIPHdr->ip_ttl +=1;
+                currIPHdr->ip_sum = 0;
+                currIPHdr->ip_sum = cksum(currIPHdr, sizeof(sr_ip_hdr_t));
                 uint8_t* datagram = malloc(8);
                 memcpy(datagram, &packet->buf[sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t)], 8);
 
@@ -69,19 +73,19 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 uint32_t IPSrc = ntohl(targetInterface->ip);
 
                 uint8_t* hardware_ether_src = malloc(6);
-                memcpy(hardware_ether_src, currEthHdr->ether_shost, 6);
+                memcpy(hardware_ether_src, targetInterface->addr, 6);
                 swap_mac(hardware_ether_src);
 
                 uint8_t* hardware_ether_dest = malloc(6);
                 memcpy(hardware_ether_dest, currEthHdr->ether_dhost, 6);
                 swap_mac(hardware_ether_dest);
 
-                sr_object_t sendICMPPacket = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_1, 0, (uint8_t*)currIPHdr);
+                sr_object_t sendICMPPacket = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_1, 0, (uint8_t*)currIPHdr); 
                 sr_object_t sendIPHeader = create_ip_packet(ip_protocol_icmp, IPSrc, icmp_destination, sendICMPPacket.packet,
                                                                 sendICMPPacket.len);
                 sr_object_t sendEthernet = create_ethernet_packet(hardware_ether_src, hardware_ether_dest,
                                                                     ethertype_ip, sendIPHeader.packet, sendIPHeader.len);
-                printf("sending out ICMP unreachable due to ARP failure\n");
+                	
                 sr_send_packet(sr, sendEthernet.packet, sendEthernet.len, targetInterface->name);
 
                 packet = packet->next;
@@ -120,8 +124,8 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
             arp_packet = create_ethernet_packet(sourceMac, broadcastAddr, ethertype_arp,(uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
 
             sr_send_packet(sr, arp_packet.packet, arp_packet.len, rt->interface);
-            req->sent = time(NULL);
-            req->times_sent++;
+            req->times_sent = time(NULL);
+	    req->times_sent++;
 
             free(newArpReq);
             free(sourceMac);

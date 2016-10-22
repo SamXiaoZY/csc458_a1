@@ -84,7 +84,7 @@ void sr_create_send_ethernet_packet(struct sr_instance* sr, uint8_t* ether_shost
 struct sr_arp_hdr *sr_create_arp_response_hdr(struct sr_arp_hdr *arp_hdr, unsigned char *self_mac, uint32_t self_ip, unsigned char *target_mac, uint32_t target_ip);
 void createAndSendIPPacket(struct sr_instance* sr, uint32_t ip_src, uint32_t ip_dest, uint8_t* eth_src, uint8_t* eth_dest, uint8_t* ip_payload, uint8_t size);
 void createAndSendICMPPacket(struct sr_instance* sr, struct sr_ethernet_hdr* ether_hdr, struct sr_ip_hdr* ip_packet, uint8_t* data, uint8_t size);
-void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned int ip_packet_len);
+void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned int ip_packet_len, uint8_t* original_eth_src);
 
 /* -- sr_if.c -- */
 void sr_add_interface(struct sr_instance* , const char* );

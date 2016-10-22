@@ -252,8 +252,6 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
 
     createAndSendIPPacket(sr, ip_src, ip_dest, eth_src, eth_dest, icmp_t3_wrapper.packet, icmp_t3_wrapper.len);
   } else {
-
-
     /* Get the MAC address of next hub*/
     struct sr_rt* longestPrefixIPMatch = getInterfaceLongestMatch(sr->routing_table,ip_hdr->ip_dst);
     struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_hdr->ip_dst);
@@ -269,8 +267,8 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
       ip_hdr->ip_sum = get_network_cksum_from_hardware_ip(ip_packet, ip_hdr_size);
 
       if (arp_entry == NULL) {
-        /* Entry for ip_dst missing in cache table, queue the packet*/
-        queue_ethernet_packet(sr, ip_packet, ip_packet_len);
+        /* Entry for ip_dst missing in cache table, queue the packet*/       
+        queue_ethernet_packet(sr, ip_packet, ip_packet_len, eth_dest);
       } else {
         /* When forwarding to next-hop, only mac addresses change*/
         struct sr_if* outgoing_interface = sr_get_interface(sr, longestPrefixIPMatch->interface);
@@ -291,7 +289,7 @@ void sr_handle_packet_forward(struct sr_instance *sr, struct sr_ethernet_hdr *et
   }
 }
 
-void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned int ip_packet_len) {
+void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned int ip_packet_len, uint8_t* original_eth_shost) {
   sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *) ip_packet;
 
   struct sr_rt* rt = getInterfaceLongestMatch(sr->routing_table, ip_hdr->ip_dst);
@@ -299,9 +297,12 @@ void queue_ethernet_packet(struct sr_instance *sr, uint8_t *ip_packet, unsigned 
 
   transform_hardware_to_network_ip_header(ip_hdr);
 
-  uint8_t* empty_ether_shost = malloc(6);
-  sr_object_t ethernet_packet = create_ethernet_packet(empty_ether_shost, empty_ether_shost, ethertype_ip, ip_packet, ip_packet_len);
-  free(empty_ether_shost);
+  /* Holds the original ethernet address of sender in case of arp cache misses, resulting in sending
+     back host unreachable*/
+  uint8_t* placeholder_ether_shost = malloc(6);
+  memcpy(placeholder_ether_shost, original_eth_shost, 6);
+  sr_object_t ethernet_packet = create_ethernet_packet(placeholder_ether_shost, placeholder_ether_shost, ethertype_ip, ip_packet, ip_packet_len);
+  free(placeholder_ether_shost);
 
   sr_arpcache_queuereq(&(sr->cache), hardware_ip_dst, ethernet_packet.packet, ethernet_packet.len, rt->interface);
 }
