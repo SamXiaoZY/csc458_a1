@@ -195,7 +195,7 @@ void sr_handle_packet_reply(struct sr_instance* sr, uint8_t *ip_packet, struct s
     unsigned int headers_size = sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t);
     uint8_t* icmp_payload = ip_packet + headers_size;
     sr_object_t icmp_wrapper = create_icmp_packet(icmp_type_echo_reply, icmp_code_0, icmp_payload, ip_hdr->ip_len - headers_size);
-    sr_object_t ip_wrapper = create_ip_packet(ip_protocol_icmp, ip_src, nextHopIPHardware, icmp_wrapper.packet, icmp_wrapper.len);
+    sr_object_t ip_wrapper = create_ip_packet(ip_protocol_icmp, ip_src, ip_dest, icmp_wrapper.packet, icmp_wrapper.len);
     sr_object_t eth_wrapper = create_ethernet_packet(eth_src,eth_dest,ethertype_ip,ip_wrapper.packet,ip_wrapper.len);
     if (longestPrefixIPMatch == NULL) {
       sr_object_t icmp_t3_wrapper = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_0, 0, ip_packet);
