@@ -39,27 +39,14 @@ uint8_t ip_protocol(uint8_t *buf);
 sr_object_t create_icmp_packet(uint8_t type, uint8_t code, uint8_t* data, unsigned int len);
 sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet);
 sr_object_t create_ip_packet( uint8_t protocol, uint32_t ip_src, uint32_t ip_dst, uint8_t* data, unsigned int len);
+sr_object_t create_arp_response_hdr(struct sr_arp_hdr *arp_hdr, unsigned char *self_mac, uint32_t self_ip, unsigned char *target_mac, uint32_t target_ip);
 sr_object_t create_ethernet_packet(uint8_t* ether_shost, uint8_t* ether_dhost, uint16_t ethertype, uint8_t *data, unsigned int len);
 
 sr_object_t create_packet(uint8_t *packet, unsigned int len);
 sr_object_t create_combined_packet(uint8_t *hdr, unsigned int hdr_len, uint8_t *data, unsigned int data_len);
-void swap_mac(uint8_t *mac);
 
-struct sr_rt* getInterfaceLongestMatch(struct sr_rt *routingTable, uint32_t targetIP);
+struct sr_rt* get_longest_prefix_match_interface(struct sr_rt *routingTable, uint32_t targetIP);
 int targetIPMatchesEntry(uint32_t entry, uint32_t mask, uint32_t target);
-
-void transform_network_to_hardware_ethernet_header(sr_ethernet_hdr_t* eth_hdr);
-void transform_network_to_hardware_ip_header(sr_ip_hdr_t* ip_hdr);
-void transform_network_to_hardware_icmp_header (sr_icmp_hdr_t* icmp_hdr);
-void transform_network_to_hardware_icmp_t3_header (sr_icmp_t3_hdr_t* icmp_t3_hdr);
-void transform_network_to_hardware_arp_header (sr_arp_hdr_t* arp_hdr);
-void transform_network_to_hardware_sr_if(struct sr_if* interface);
-
-void transform_hardware_to_network_ethernet_header(sr_ethernet_hdr_t* eth_hdr);
-void transform_hardware_to_network_ip_header(sr_ip_hdr_t* ip_hdr);
-void transform_hardware_to_network_icmp_header (sr_icmp_hdr_t* icmp_hdr);
-void transform_hardware_to_network_icmp_t3_header (sr_icmp_t3_hdr_t* icmp_t3_hdr);
-void transform_hardware_to_network_arp_header (sr_arp_hdr_t* arp_hdr);
 
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);

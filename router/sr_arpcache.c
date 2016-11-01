@@ -58,43 +58,27 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 
                 /* IP Packet is in network order */
                 sr_ip_hdr_t* currIPHdr = (sr_ip_hdr_t*) &(packet->buf[sizeof(sr_ethernet_hdr_t)]);
-                currIPHdr->ip_ttl +=1;
-                currIPHdr->ip_sum = 0;
+
+                /* Undo previous ttl decrement to make ip packet match that of the original */
+                currIPHdr->ip_ttl += 1;
+                currIPHdr->ip_sum = htons(0);
                 currIPHdr->ip_sum = cksum(currIPHdr, sizeof(sr_ip_hdr_t));
-                uint8_t* datagram = malloc(8);
-                memcpy(datagram, &packet->buf[sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t)], 8);
 
-                /* Perform network to hardware conversions since non-built-in helper functions assume hardware order */
-                uint32_t icmp_destination = ntohl(currIPHdr->ip_src);
-
-                struct sr_rt* targetRT = getInterfaceLongestMatch(sr->routing_table, icmp_destination);
+                struct sr_rt* targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_src);
                 struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
 
-                uint32_t IPSrc = ntohl(targetInterface->ip);
-
-                uint8_t* hardware_ether_src = malloc(6);
-                memcpy(hardware_ether_src, targetInterface->addr, 6);
-                swap_mac(hardware_ether_src);
-
-                uint8_t* hardware_ether_dest = malloc(6);
-                memcpy(hardware_ether_dest, currEthHdr->ether_dhost, 6);
-                swap_mac(hardware_ether_dest);
-
                 sr_object_t sendICMPPacket = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_1, 0, (uint8_t*)currIPHdr); 
-                sr_object_t sendIPHeader = create_ip_packet(ip_protocol_icmp, IPSrc, icmp_destination, sendICMPPacket.packet,
+                sr_object_t sendIPHeader = create_ip_packet(ip_protocol_icmp, targetInterface->ip, currIPHdr->ip_src, sendICMPPacket.packet,
                                                                 sendICMPPacket.len);
-                sr_object_t sendEthernet = create_ethernet_packet(hardware_ether_src, hardware_ether_dest,
+                sr_object_t sendEthernet = create_ethernet_packet(targetInterface->addr, currEthHdr->ether_dhost,
                                                                     ethertype_ip, sendIPHeader.packet, sendIPHeader.len);
                 	
                 sr_send_packet(sr, sendEthernet.packet, sendEthernet.len, targetInterface->name);
 
                 packet = packet->next;
-                free(datagram);
                 free(sendEthernet.packet);
                 free(sendIPHeader.packet);
                 free(sendICMPPacket.packet);
-                free(hardware_ether_src);
-                free(hardware_ether_dest);
             }
             sr_arpreq_destroy(&sr->cache, req);
         }
@@ -103,7 +87,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
             sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packet->buf;
 
             struct sr_rt* rt;
-            rt = get_Node_From_RoutingTable(sr, htonl(req->ip));
+            rt = get_Node_From_RoutingTable(sr, req->ip);
             if(!rt){
                 fprintf(stderr, "problem\n");
             }
@@ -118,35 +102,30 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
 
             sr_object_t arp_packet;
 
-            uint8_t* sourceMac = malloc(6);
-            memcpy(sourceMac, sr_if->addr, 6);
-            swap_mac(sourceMac);
-            arp_packet = create_ethernet_packet(sourceMac, broadcastAddr, ethertype_arp,(uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
+            arp_packet = create_ethernet_packet(sr_if->addr, broadcastAddr, ethertype_arp,(uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
 
             sr_send_packet(sr, arp_packet.packet, arp_packet.len, rt->interface);
             req->times_sent = time(NULL);
 	    req->times_sent++;
 
             free(newArpReq);
-            free(sourceMac);
             free(arp_packet.packet);
         }
     }
 }
 
-sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if,uint8_t* target_mac) {
+sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if, uint8_t* target_mac) {
   sr_arp_hdr_t *output = malloc(sizeof(sr_arp_hdr_t));
 
-  output->ar_hrd = htons(0x0001);
+  output->ar_hrd = htons(arp_hrd_ethernet);
   output->ar_pro = htons(ethertype_ip);
   output->ar_hln = 0x0006;
   output->ar_pln = 0x0004;
   output->ar_op = htons(arp_op_request);
   output->ar_sip = sr_if->ip;
   memcpy(&output->ar_sha[0], &sr_if->addr[0], ETHER_ADDR_LEN);
-  swap_mac(target_mac);
   memcpy(&output->ar_tha[0], target_mac, ETHER_ADDR_LEN);
-  output->ar_tip = ntohl(req->ip);
+  output->ar_tip = req->ip;
 
   return output;
 }
@@ -165,36 +144,29 @@ return NULL;
 }
 
 char* get_interface_from_mac(uint8_t *ether_shost, struct sr_instance* sr) {
-    /* Input Ethernet is hardware order */
-    uint8_t* hardware_ether_shost = malloc(6);
-    memcpy(hardware_ether_shost, ether_shost, 6);
-    swap_mac(hardware_ether_shost);
-
     struct sr_if* interfaceList = sr->if_list;
     int i;
-    while(interfaceList){
+
+    while (interfaceList) {
         int matching = 1;
 
-        /*compare*/ 
-        for(i = 0; i<ETHER_ADDR_LEN; i++) {
-            if(interfaceList->addr[i] !=  hardware_ether_shost[i]) {
+        for(i = 0; i < ETHER_ADDR_LEN; i++) {
+            if(interfaceList->addr[i] !=  ether_shost[i]) {
                 matching = 0;
                 break;
             }
         }
 
         if (matching) {
-            free(hardware_ether_shost);
             return interfaceList->name;
         }
 
         interfaceList = interfaceList->next;
     }
-    free(hardware_ether_shost);
     return NULL;
 }
 
-void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply) {
+void receivedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply) {
 
     unsigned char* replyAddr = ARPReply->ar_sha;
     uint32_t replyIP = ARPReply->ar_sip;
@@ -208,14 +180,12 @@ void receviedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply) {
             sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packets->buf;
             memcpy(currEthHdr->ether_shost, myInterface->addr, ETHER_ADDR_LEN);
             memcpy(currEthHdr->ether_dhost, replyAddr, ETHER_ADDR_LEN);
-            swap_mac(currEthHdr->ether_dhost);
 
             sr_send_packet(sr , packets->buf , packets->len, packets->iface);
             packets = packets->next;
         }
     }
     sr_arpreq_destroy(&sr->cache, arpreq);
-
 }
 
 /* You should not need to touch the rest of this code. */
