@@ -166,6 +166,6 @@ void receivedARPReply(struct sr_instance* sr, sr_arp_hdr_t* ARPReply);
 sr_icmp_hdr_t* createICMPhdr(uint8_t icmp_type, uint8_t icmp_code);
 sr_arp_hdr_t *createARPReqHdr(struct sr_instance* sr, struct sr_arpreq *req, struct sr_if* sr_if, uint8_t* target_mac); 
 
-
+int sr_is_packet_recipient(struct sr_instance *sr, uint32_t ip);
 
 #endif

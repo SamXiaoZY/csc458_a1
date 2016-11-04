@@ -60,5 +60,4 @@ void print_hdr_arp(uint8_t *buf);
 /* prints all headers, starting from eth */
 void print_hdrs(uint8_t *buf, uint32_t length);
 
-int sr_is_packet_recipient(struct sr_instance *sr, uint32_t ip);
 #endif /* -- SR_UTILS_H -- */

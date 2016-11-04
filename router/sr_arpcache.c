@@ -66,7 +66,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
 
                 struct sr_rt* targetRT;
 
-                if(sr_is_packet_recipient(sr, currIPHdr->ip_src){
+                if(sr_is_packet_recipient(sr, currIPHdr->ip_src)){
                     targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_dst);
                 }
                 else{
@@ -115,7 +115,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
 
             sr_send_packet(sr, arp_packet.packet, arp_packet.len, rt->interface);
             req->sent = time(NULL);
-	    req->times_sent++;
+	        req->times_sent++;
 
             free(newArpReq);
             free(arp_packet.packet);
