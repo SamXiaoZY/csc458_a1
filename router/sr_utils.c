@@ -314,3 +314,15 @@ void print_hdrs(uint8_t *buf, uint32_t length) {
     fprintf(stderr, "Unrecognized Ethernet Type: %d\n", ethtype);
   }
 }
+
+int sr_is_packet_recipient(struct sr_instance *sr, uint32_t ip) {
+  struct sr_if* if_walker = sr->if_list;
+  while(if_walker)
+  {
+    if(if_walker->ip == ip) { 
+      return 1; 
+    }
+    if_walker = if_walker->next;
+  }
+  return 0;
+}

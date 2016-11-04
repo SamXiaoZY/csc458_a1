@@ -64,7 +64,16 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 currIPHdr->ip_sum = htons(0);
                 currIPHdr->ip_sum = cksum(currIPHdr, sizeof(sr_ip_hdr_t));
 
-                struct sr_rt* targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_src);
+                struct sr_rt* targetRT;
+
+                if(sr_is_packet_recipient(sr, currIPHdr->ip_src){
+                    targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_dst);
+                }
+                else{
+                    targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_src);
+                }
+
+
                 struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
 
                 sr_object_t sendICMPPacket = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_1, 0, (uint8_t*)currIPHdr); 

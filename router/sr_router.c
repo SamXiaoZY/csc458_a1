@@ -117,20 +117,6 @@ void sr_handlepacket(struct sr_instance* sr,
   free(incoming_hardware_interface);
 }/* end sr_handlepacket */
 
-
-/* Determine if the router contains the intended recipient of the ip packet*/
-int sr_is_packet_recipient(struct sr_instance *sr, uint32_t ip) {
-  struct sr_if* if_walker = sr->if_list;
-  while(if_walker)
-  {
-    if(if_walker->ip == ip) { 
-      return 1; 
-    }
-    if_walker = if_walker->next;
-  }
-  return 0;
-}
-
 /* Send back the MAC address of our incoming interface to the sender*/
 void sr_handle_arp_request(struct sr_instance* sr, struct sr_ethernet_hdr *ethernet_hdr, struct sr_arp_hdr *arp_hdr, struct sr_if* out_interface) {
 
