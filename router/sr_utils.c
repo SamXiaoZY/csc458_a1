@@ -39,9 +39,12 @@ sr_object_t create_icmp_packet(uint8_t type, uint8_t code, uint8_t* data, unsign
   icmp_header->icmp_code = code;
   icmp_header->icmp_sum = htons(0);
 
-  icmp_header->icmp_sum = cksum((void*)icmp_header, icmp_hdr_size+len);
-
-  return create_combined_packet((uint8_t*)icmp_header, icmp_hdr_size, data, len);
+  sr_object_t combined_packet = create_combined_packet((uint8_t*)icmp_header, icmp_hdr_size, data, len);
+ 
+  /* Set checksum after combining the data as the icmp checksum has to account for its misc. payload */
+  sr_icmp_hdr_t *combined_header = (sr_icmp_hdr_t *)combined_packet.packet;
+  combined_header->icmp_sum = cksum(combined_packet.packet, combined_packet.len);
+  return combined_packet;
 }
 
 sr_object_t create_icmp_t3_packet(uint8_t icmp_type, uint8_t icmp_code, uint16_t next_mtu, uint8_t* ip_packet) {
