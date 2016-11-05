@@ -105,7 +105,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
             arp_packet = create_ethernet_packet(sr_if->addr, broadcastAddr, ethertype_arp,(uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
 
             sr_send_packet(sr, arp_packet.packet, arp_packet.len, rt->interface);
-            req->times_sent = time(NULL);
+            req->sent = time(NULL);
 	    req->times_sent++;
 
             free(newArpReq);

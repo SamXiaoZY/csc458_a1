@@ -39,7 +39,7 @@ sr_object_t create_icmp_packet(uint8_t type, uint8_t code, uint8_t* data, unsign
   icmp_header->icmp_code = code;
   icmp_header->icmp_sum = htons(0);
 
-  icmp_header->icmp_sum = cksum((void*)icmp_header, icmp_hdr_size);
+  icmp_header->icmp_sum = cksum((void*)icmp_header, icmp_hdr_size+len);
 
   return create_combined_packet((uint8_t*)icmp_header, icmp_hdr_size, data, len);
 }
