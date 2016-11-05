@@ -43,7 +43,7 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
     time_t curtime = time(NULL);
 
     if(difftime(curtime, req->sent) > 1.0){
-        if(req->times_sent >= 5){
+        if(req->times_sent >= 0){
             /*sent ICMP unreachable to all packets waiting on this ARPReq*/
             while(packet != NULL){
 
@@ -63,27 +63,34 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 currIPHdr->ip_ttl += 1;
                 currIPHdr->ip_sum = htons(0);
                 currIPHdr->ip_sum = cksum(currIPHdr, sizeof(sr_ip_hdr_t));
-
+                print_hdrs(packet->buf, packet->len);
                 struct sr_rt* targetRT;
 
+		uint32_t ip_src, ip_dst;
                 if(sr_is_packet_recipient(sr, currIPHdr->ip_src)){
-                    targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_dst);
+                     fprintf(stderr, "we are reply\n");
+                     targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_dst);
+                     ip_dst = currIPHdr->ip_dst;
+                     ip_src = currIPHdr->ip_src;
+                     /*we swap src and dst IPs here so the createIPheader works later on*/
                 }
-                else{
+                else{ fprintf(stderr, "we are forwarding\n");
                     targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_src);
+                    ip_dst = currIPHdr->ip_src;
+                    ip_src = currIPHdr->ip_dst;
                 }
 
 
                 struct sr_if *targetInterface = sr_get_interface(sr, targetRT->interface);
 
                 sr_object_t sendICMPPacket = create_icmp_t3_packet(icmp_type_dest_unreachable, icmp_code_1, 0, (uint8_t*)currIPHdr); 
-                sr_object_t sendIPHeader = create_ip_packet(ip_protocol_icmp, targetInterface->ip, currIPHdr->ip_src, sendICMPPacket.packet,
+                sr_object_t sendIPHeader = create_ip_packet(ip_protocol_icmp, targetInterface->ip, ip_dst, sendICMPPacket.packet,
                                                                 sendICMPPacket.len);
-                sr_object_t sendEthernet = create_ethernet_packet(targetInterface->addr, currEthHdr->ether_dhost,
+                sr_object_t sendEthernet = create_ethernet_packet( targetInterface->addr, currEthHdr->ether_dhost,
                                                                     ethertype_ip, sendIPHeader.packet, sendIPHeader.len);
                 	
                 sr_send_packet(sr, sendEthernet.packet, sendEthernet.len, targetInterface->name);
-
+                print_hdrs(sendEthernet.packet, sendEthernet.len);
                 packet = packet->next;
                 free(sendEthernet.packet);
                 free(sendIPHeader.packet);
