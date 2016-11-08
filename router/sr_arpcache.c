@@ -38,12 +38,11 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
     /*WARNING MAY NOT WORK IF THE FIRST PACKET in req->packets is EMPTY.8?*/
 
     /*this is a linked list of packets depending on the ARP request*/
-    struct sr_packet *packet = req->packets; 
-    
+    struct sr_packet *packet = req->packets;  
     time_t curtime = time(NULL);
 
-    if(difftime(curtime, req->sent) > 1.0){
-        if(req->times_sent >= 0){
+    if(difftime(curtime, req->sent) >= 1.0){
+        if(req->times_sent >= 5){
             /*sent ICMP unreachable to all packets waiting on this ARPReq*/
             while(packet != NULL){
 
@@ -66,18 +65,16 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                 print_hdrs(packet->buf, packet->len);
                 struct sr_rt* targetRT;
 
-		uint32_t ip_src, ip_dst;
+		uint32_t ip_dst;
                 if(sr_is_packet_recipient(sr, currIPHdr->ip_src)){
                      fprintf(stderr, "we are reply\n");
                      targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_dst);
                      ip_dst = currIPHdr->ip_dst;
-                     ip_src = currIPHdr->ip_src;
                      /*we swap src and dst IPs here so the createIPheader works later on*/
                 }
                 else{ fprintf(stderr, "we are forwarding\n");
                     targetRT = get_longest_prefix_match_interface(sr->routing_table, currIPHdr->ip_src);
                     ip_dst = currIPHdr->ip_src;
-                    ip_src = currIPHdr->ip_dst;
                 }
 
 
@@ -90,16 +87,16 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
                                                                     ethertype_ip, sendIPHeader.packet, sendIPHeader.len);
                 	
                 sr_send_packet(sr, sendEthernet.packet, sendEthernet.len, targetInterface->name);
-                print_hdrs(sendEthernet.packet, sendEthernet.len);
+                
                 packet = packet->next;
+
                 free(sendEthernet.packet);
                 free(sendIPHeader.packet);
                 free(sendICMPPacket.packet);
             }
             sr_arpreq_destroy(&sr->cache, req);
         }
-        else{/*req->times_sent <= 5*/
-
+        else{
             sr_ethernet_hdr_t* currEthHdr = (sr_ethernet_hdr_t*) packet->buf;
 
             struct sr_rt* rt;
@@ -120,9 +117,9 @@ void handle_arpreq(struct sr_arpreq* req, struct sr_instance* sr){
 
             arp_packet = create_ethernet_packet(sr_if->addr, broadcastAddr, ethertype_arp,(uint8_t*)newArpReq, sizeof(sr_arp_hdr_t));
 
-            sr_send_packet(sr, arp_packet.packet, arp_packet.len, rt->interface);
+            /*sr_send_packet(sr, arp_packet.packet, arp_packet.len, rt->interface);*/
             req->sent = time(NULL);
-	        req->times_sent++;
+	    req->times_sent++;
 
             free(newArpReq);
             free(arp_packet.packet);
